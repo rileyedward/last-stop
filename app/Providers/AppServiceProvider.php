@@ -2,11 +2,17 @@
 
 namespace App\Providers;
 
+use App\Game\Data\GameData;
+use App\Game\Engine\Engine;
+use App\Lobby\Identity;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Random\Randomizer;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +21,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(GameData::class, fn () => GameData::default());
+        $this->app->bind(Engine::class, fn ($app) => new Engine($app->make(GameData::class), new Randomizer));
     }
 
     /**
@@ -24,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        // Guest players authenticate their channels with the token cookie.
+        Auth::viaRequest('player-token', fn (Request $request) => Identity::guest($request));
     }
 
     /**

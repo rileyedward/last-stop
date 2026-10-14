@@ -42,6 +42,11 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Guest players, known by the token cookie in their browser.
+        'player' => [
+            'driver' => 'player-token',
+        ],
     ],
 
     /*
