@@ -1,5 +1,6 @@
 <?php
 
+use App\Game\Data\Card;
 use App\Game\Data\GameData;
 use App\Game\Engine\Engine;
 use App\Game\Engine\Game;
@@ -91,6 +92,34 @@ it('loads every rule number from the CSVs', function () {
         ->and($data->rulesFor(10)['rules']['traitors'])->toBe(2);
 });
 
+it('reads each card kind from tasks.csv', function () {
+    expect(gameData()->card('ENG-06')->name)->toBe('Thaw the switches')
+        ->and(gameData()->card('ENG-06')->kind)->toBe('routine') // the numbers alone would say repair
+        ->and(gameData()->card('ENG-01')->kind)->toBe('speed');
+});
+
+it('takes Easy and Hard routes from players.csv when it has them', function () {
+    $dir = sys_get_temp_dir().'/ls-data-'.uniqid();
+    mkdir($dir);
+    foreach (glob(__DIR__.'/../../../resources/game/*.csv') as $file) {
+        copy($file, $dir.'/'.basename($file));
+    }
+    $players = file($dir.'/players.csv', FILE_IGNORE_NEW_LINES);
+    $players[0] .= ',easy_route,hard_route';
+    for ($i = 1; $i < count($players); $i++) {
+        $players[$i] .= ',11,33';
+    }
+    file_put_contents($dir.'/players.csv', implode("\n", $players)."\n");
+
+    $data = GameData::load($dir);
+    expect($data->rulesFor(5, 'easy')['rules']['route'])->toBe(11)
+        ->and($data->rulesFor(5, 'hard')['rules']['route'])->toBe(33)
+        ->and($data->rulesFor(5)['rules']['route'])->toBe(17);
+
+    array_map('unlink', glob($dir.'/*'));
+    rmdir($dir);
+});
+
 it('derives a kind for every card', function () {
     $kinds = array_map(fn ($card) => $card->kind, gameData()->tasks['passenger_services']);
 
@@ -99,7 +128,8 @@ it('derives a kind for every card', function () {
         ->and(gameData()->card('PAS-05')->kind)->toBe('speed')  // Seal the rear carriages
         ->and(gameData()->card('PAS-10')->kind)->toBe('routine') // Reassuring announcement
         ->and(gameData()->card('ENG-04')->kind)->toBe('repair') // Full overhaul
-        ->and($kinds)->each->toBeIn(['speed', 'repair', 'support', 'routine']);
+        ->and($kinds)->each->toBeIn(['speed', 'repair', 'support', 'routine'])
+        ->and(Card::kindOf('engineering', ['engineering' => 1], 0))->toBe('routine');
 });
 
 it('deals departments evenly and the right number of traitors', function (int $n) {

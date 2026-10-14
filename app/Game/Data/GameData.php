@@ -33,7 +33,7 @@ final class GameData
      * @param  array<string, list<Card>>  $tasks  Department key => deck.
      * @param  list<Card>  $weather
      * @param  array<int, array{departments: list<string>, traitors: int, route: int, days: int, weather_per_day: int}>  $table
-     * @param  array<int, array{easy: int, hard: int}>  $presets
+     * @param  array<int, array<string, int>>  $presets  Players => preset => route.
      * @param  array<string, Card>  $cards
      */
     private function __construct(
@@ -100,10 +100,19 @@ final class GameData
         }
         ksort($table);
 
+        // Easy and Hard routes: players.csv columns when the simulator
+        // exports them, otherwise presets.csv.
         $presets = [];
         if (is_file($dir.'/presets.csv')) {
             foreach (self::rows($dir.'/presets.csv') as $row) {
                 $presets[(int) $row['players']] = ['easy' => (int) $row['easy_route'], 'hard' => (int) $row['hard_route']];
+            }
+        }
+        foreach (self::rows($dir.'/'.self::fileName($raw['players_csv'] ?? 'players.csv')) as $row) {
+            foreach (['easy', 'hard'] as $preset) {
+                if (trim($row[$preset.'_route'] ?? '') !== '') {
+                    $presets[(int) $row['players']][$preset] = (int) $row[$preset.'_route'];
+                }
             }
         }
 
@@ -169,6 +178,10 @@ final class GameData
             }
         }
         $distance = (int) ($row['distance'] ?? 0);
+        $kind = strtolower(trim($row['kind'] ?? ''));
+        if ($dept === null || ! in_array($kind, Card::KINDS, true)) {
+            $kind = Card::kindOf($dept, $effects, $distance);
+        }
 
         return new Card(
             id: $id,
@@ -177,7 +190,7 @@ final class GameData
             effects: $effects,
             distance: $distance,
             flavor: trim($row['flavor'] ?? ''),
-            kind: Card::kindOf($dept, $effects, $distance),
+            kind: $kind,
         );
     }
 

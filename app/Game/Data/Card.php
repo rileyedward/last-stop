@@ -4,6 +4,8 @@ namespace App\Game\Data;
 
 final readonly class Card
 {
+    public const KINDS = ['speed', 'repair', 'support', 'routine'];
+
     /**
      * @param  array<string, int>  $effects  Department key => change.
      */
@@ -18,10 +20,10 @@ final readonly class Card
     ) {}
 
     /**
-     * Speed, repair, support or routine. The CSVs don't say, so it is read
-     * from the numbers: distance up is speed, a lone +1 to your own
-     * department is routine, raising your own department is repair, and
-     * anything else helps someone else.
+     * Speed, repair, support or routine, for a deck whose CSV has no kind
+     * column: distance up is speed, a lone +1 to your own department is
+     * routine, raising your own department is repair, and anything else
+     * helps someone else.
      *
      * @param  array<string, int>  $effects
      */
