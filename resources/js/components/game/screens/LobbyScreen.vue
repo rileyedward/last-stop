@@ -43,6 +43,7 @@ const status = computed(() => {
 
 const winsLine = computed(() =>
     lobby.value.wins
+        .filter((w) => w.total > 0)
         .slice(0, 3)
         .map((w) => `${w.isMe ? 'You' : w.name} ${w.total}`)
         .join(', '),

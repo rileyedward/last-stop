@@ -40,7 +40,12 @@ watch(
 const title = computed(() => {
     const game = props.state.game;
     if (props.state.screen === 'game' && game) {
-        return `Day ${game.day} · ${game.phase}`;
+        return game.phase === 'boarding'
+            ? 'Boarding'
+            : `Day ${game.day} · ${game.phase}`;
+    }
+    if (props.state.screen === 'final') {
+        return 'Last stop';
     }
 
     return `Lobby ${code}`;

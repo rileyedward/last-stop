@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 
 /**
@@ -22,14 +22,19 @@ export function useClock(
         fired = false;
     });
 
-    const timer = window.setInterval(() => {
+    let timer: number | undefined;
+    onMounted(() => {
+        offset.value = serverNow.value - Date.now();
+        timer = window.setInterval(tick, 250);
+    });
+    const tick = () => {
         now.value = Date.now() + offset.value;
         if (deadline.value !== null && now.value >= deadline.value && !fired) {
             fired = true;
             // A moment after zero, ask the server to move the game on.
             window.setTimeout(() => onZero?.(), 400);
         }
-    }, 250);
+    };
     onBeforeUnmount(() => window.clearInterval(timer));
 
     const remainingMs = computed(() => {

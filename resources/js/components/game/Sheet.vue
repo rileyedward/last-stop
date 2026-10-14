@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue';
+
+// Teleports only after mounting, so server rendering and hydration agree.
+const mounted = ref(false);
+onMounted(() => (mounted.value = true));
+
 defineProps<{ open: boolean; title?: string }>();
 const emit = defineEmits<{ close: [] }>();
 </script>
 
 <template>
-    <Teleport to="body">
+    <Teleport v-if="mounted" to="body">
         <Transition name="ls-fade">
             <div v-if="open" class="sheet-backdrop" @click="emit('close')" />
         </Transition>

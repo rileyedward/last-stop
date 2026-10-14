@@ -16,7 +16,8 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 const GAME_PAGES = ['Name', 'Home', 'Join', 'Board', 'Station', 'Gone'];
 
 void createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    title: (title) =>
+        title && title !== appName ? `${title} - ${appName}` : appName,
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':

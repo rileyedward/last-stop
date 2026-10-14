@@ -107,7 +107,7 @@ const over = computed(() => props.game.winner !== null);
 
 <template>
     <div class="flex flex-col gap-3">
-        <div class="flex justify-between gap-1">
+        <div v-if="!done" class="flex justify-between gap-1">
             <div
                 v-for="d in game.departments"
                 :key="d.key"
@@ -349,12 +349,11 @@ const over = computed(() => props.game.winner !== null);
                         <div class="text-[14px]">
                             <b>{{ isMe(p.player) ? 'You' : name(p.player) }}</b>
                             <span
-                                class="mono text-[11px]"
+                                class="mono ml-1 text-[11px]"
                                 :style="{
                                     color: dept(p.card!.department).color,
                                 }"
-                            >
-                                {{ dept(p.card!.department).code }}</span
+                                >{{ dept(p.card!.department).code }}</span
                             >
                             · {{ p.card!.name }}
                         </div>

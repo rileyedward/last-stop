@@ -111,7 +111,7 @@ const traitorDept = (id: string) =>
             </div>
             <div class="max-w-[280px] text-[15px]">{{ banner.line }}</div>
             <div
-                class="absolute top-[18px] right-[-6px] rotate-[10deg] rounded border-[3px] px-[10px] py-[6px] font-[900] tracking-[.08em]"
+                class="absolute right-3 bottom-3 rotate-[-8deg] rounded border-[3px] px-[10px] py-[6px] font-[900] tracking-[.08em] opacity-80"
                 style="
                     font-family: 'Big Shoulders Display', sans-serif;
                     font-size: 18px;
@@ -231,7 +231,7 @@ const traitorDept = (id: string) =>
                 <div class="flex-1 text-[15px]">
                     <b>{{ p.isMe ? 'You' : p.name }}</b>
                     <span
-                        class="mono text-[11px]"
+                        class="mono ml-1 text-[11px]"
                         :style="{ color: dept(p.department).color }"
                         >{{ dept(p.department).code }}</span
                     >

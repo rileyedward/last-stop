@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed, toRef } from 'vue';
+import { computed, onMounted, ref, toRef } from 'vue';
 import Flaps from '@/components/game/Flaps.vue';
 import Icon from '@/components/game/Icon.vue';
 import { ICONS } from '@/components/game/icons';
