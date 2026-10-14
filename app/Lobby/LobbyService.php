@@ -10,6 +10,7 @@ use App\Game\Engine\Game;
 use App\Jobs\AdvanceGame;
 use Closure;
 use Illuminate\Support\Carbon;
+use Throwable;
 
 /**
  * Everything players and hosts do to a lobby and its game. Each change runs
@@ -379,9 +380,14 @@ final class LobbyService
 
     private function announce(Lobby $lobby, ?int $deadlineBefore): void
     {
-        broadcast(new TableUpdated($lobby->code, $lobby->version));
-        foreach ($this->nudges as $id) {
-            broadcast(new PlayerUpdated($id, 'removed'));
+        // A ping that fails to send must never undo a move: pages also poll.
+        try {
+            broadcast(new TableUpdated($lobby->code, $lobby->version));
+            foreach ($this->nudges as $id) {
+                broadcast(new PlayerUpdated($id, 'removed'));
+            }
+        } catch (Throwable $e) {
+            report($e);
         }
         $this->nudges = [];
 
