@@ -1,0 +1,9 @@
+setting,value,notes
+boarding_seconds,20,Time to open your ticket before the first dawn
+dawn_seconds,10,Time to read the weather before hands are drawn
+day_seconds,60,Day pick timer; a random card is played for anyone who hasn't picked
+reveal_seconds,25,Time to read the picks before night falls
+night_seconds,120,Night discussion window
+vote_seconds,30,Time to vote after a brake pull; a missing vote counts as no
+after_vote_seconds,30,Night time left after a vote is at least this long
+inquiry_seconds,60,Time for the crew to name a suspect at the end

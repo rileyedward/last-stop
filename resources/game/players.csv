@@ -1,0 +1,8 @@
+players,departments,traitors,route,days,weather_per_day
+4,Engineering|Operations|Passenger Services,1,19,9,3
+5,Engineering|Operations|Passenger Services|Security,1,17,10,3
+6,Engineering|Operations|Passenger Services|Security,1,22,10,3
+7,Engineering|Operations|Passenger Services|Security,1,19,10,4
+8,Engineering|Operations|Passenger Services|Security,1,25,11,4
+9,Engineering|Operations|Passenger Services|Security,2,21,11,5
+10,Engineering|Operations|Passenger Services|Security,2,26,11,5

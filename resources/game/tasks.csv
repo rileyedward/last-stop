@@ -1,0 +1,41 @@
+department,card,engineering,operations,passenger_services,security,distance,flavor
+Engineering,Push the boilers,-2,0,0,0,2,Run the engine past its limits
+Engineering,Run hot through the pass,-1,0,0,0,1,
+Engineering,Overclock the engine,-1,0,-1,0,2,Loud and hot; passengers complain
+Engineering,Full overhaul,3,0,0,0,-1,Half a day in the shed
+Engineering,Patch the couplings,2,-1,0,0,0,Pulls Operations staff off the schedule
+Engineering,Thaw the switches,1,1,0,0,0,
+Engineering,Reroute heat to the cabins,-1,0,2,0,0,
+Engineering,Fit the snow plough,1,0,0,-1,1,Security crew helps bolt it on
+Engineering,Strip spare parts,2,0,0,-1,0,Borrowed from the security car
+Engineering,Routine maintenance,1,0,0,0,0,
+Operations,Express schedule,0,0,-2,0,2,No stops; passengers furious
+Operations,Skip the station stop,0,-1,0,0,1,
+Operations,Run the red signal,0,0,0,-2,2,
+Operations,Reroute via the valley,0,0,-1,0,1,
+Operations,Hold for track clearance,1,1,0,0,-1,
+Operations,Rebuild the timetable,0,2,0,0,-1,
+Operations,Coordinate with the depot,0,1,0,1,-1,
+Operations,Requisition supplies,-1,2,0,0,0,
+Operations,Lend a hand to the stewards,0,-1,2,0,0,
+Operations,Routine dispatch,0,1,0,0,0,
+Passenger Services,Comp the dining car,0,-1,2,0,0,Eats into the budget
+Passenger Services,Calm the carriages,0,0,1,1,-1,
+Passenger Services,Extra stop for supplies,0,0,3,0,-1,
+Passenger Services,Ration the heating,2,0,-2,0,0,
+Passenger Services,Seal the rear carriages,0,0,-2,0,1,Less weight; cramped passengers
+Passenger Services,Hot meals for the crew,0,1,-1,1,0,
+Passenger Services,Volunteer work crews,1,0,-1,0,0,Passengers help shovel
+Passenger Services,Open the lounge,0,0,2,-1,0,
+Passenger Services,Hand out blankets,-1,0,2,0,0,
+Passenger Services,Reassuring announcement,0,0,1,0,0,
+Security,Lock down the carriages,0,0,-2,2,0,
+Security,Patrol the roof,1,0,0,1,-1,
+Security,Clear the line ahead,0,0,0,-1,1,
+Security,Guard the cargo,0,-1,0,2,0,
+Security,Wave through the inspection,0,0,0,-2,1,
+Security,Crowd control,0,0,2,-1,0,
+Security,Search the luggage,0,0,0,3,-1,
+Security,Guard the engine room,2,0,0,-1,0,
+Security,Help with the timetable,0,2,0,-1,0,
+Security,Routine rounds,0,0,0,1,0,
