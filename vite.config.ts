@@ -15,6 +15,16 @@ export default defineConfig({
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
                 }),
+                bunny('Big Shoulders Display', {
+                    weights: [600, 800, 900],
+                }),
+                bunny('Atkinson Hyperlegible', {
+                    weights: [400, 700],
+                    styles: ['normal', 'italic'],
+                }),
+                bunny('IBM Plex Mono', {
+                    weights: [500, 600],
+                }),
             ],
         }),
         inertia(),
@@ -68,6 +78,7 @@ export default defineConfig({
         htmlWhitespaceSensitivity: 'css',
         ignorePatterns: [
             '.github/**',
+            'tests/Fixtures/**',
             'composer.json',
             'resources/js/components/ui/*',
             'resources/views/mail/*',

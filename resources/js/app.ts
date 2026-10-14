@@ -12,11 +12,15 @@ configureEcho({
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// The game's own pages bring their own frame.
+const GAME_PAGES = ['Name', 'Home', 'Join', 'Board', 'Station', 'Gone'];
+
 void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
+            case GAME_PAGES.includes(name):
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
