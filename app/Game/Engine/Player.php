@@ -7,25 +7,29 @@ final class Player
     // Where a player's pick stands during the day.
     public const PICK_NONE = 'none';
 
-    public const PICK_LOCKED = 'locked';     // unrestricted pick, can still be changed
+    public const PICK_LOCKED = 'locked';     // unwatched pick, can still be changed
 
-    public const PICK_PENDING = 'pending';   // restricted pick waiting on the escort
+    public const PICK_PENDING = 'pending';   // detained player's pick waiting on the escort
 
     public const PICK_REPICK = 'repick';     // vetoed, must pick again or override
 
-    public const PICK_FINAL = 'final';       // restricted pick that will be played
-
-    public int $brakesLeft = 0;
+    public const PICK_FINAL = 'final';       // detained player's pick that will be played
 
     public int $overridesLeft = 0;
 
-    public int $restrictedDays = 0;
+    /** Days of detention left; 0 means free. */
+    public int $detainedDays = 0;
 
+    /** The detained player this player escorts. */
     public ?string $escortOf = null;
 
+    /** Vetoes this escort has left today. */
+    public int $vetoesLeft = 0;
+
+    /** Nights before this player can be nominated again. */
     public int $cooldown = 0;
 
-    public bool $everRestricted = false;
+    public bool $everDetained = false;
 
     /** Removed from the lobby mid-game: the seat plays itself. */
     public bool $absent = false;
@@ -39,7 +43,12 @@ final class Player
 
     public string $pickState = self::PICK_NONE;
 
-    public ?string $vetoed = null;
+    /**
+     * Cards the escort vetoed today, in order.
+     *
+     * @var list<string>
+     */
+    public array $vetoed = [];
 
     public ?string $escortDecision = null;
 
@@ -47,9 +56,11 @@ final class Player
 
     public bool $autoPicked = false;
 
+    /** Yes or no on tonight's detention vote. */
     public ?bool $vote = null;
 
-    public ?string $guess = null;
+    /** Who this player names in the arrival vote. */
+    public ?string $accuse = null;
 
     public function __construct(
         public string $id,
@@ -58,9 +69,14 @@ final class Player
         public bool $traitor,
     ) {}
 
-    public function isRestricted(): bool
+    public function isDetained(): bool
     {
-        return $this->restrictedDays > 0;
+        return $this->detainedDays > 0;
+    }
+
+    public function isEscorting(): bool
+    {
+        return $this->escortOf !== null;
     }
 
     public function pickIsFinal(): bool
@@ -73,7 +89,7 @@ final class Player
         $this->hand = [];
         $this->pick = null;
         $this->pickState = self::PICK_NONE;
-        $this->vetoed = null;
+        $this->vetoed = [];
         $this->escortDecision = null;
         $this->overrode = false;
         $this->autoPicked = false;
@@ -94,23 +110,23 @@ final class Player
     {
         $r = new Reader($data);
         $p = new self($r->string('id'), $r->string('name'), $r->string('department'), $r->bool('traitor'));
-        $p->brakesLeft = $r->int('brakesLeft');
         $p->overridesLeft = $r->int('overridesLeft');
-        $p->restrictedDays = $r->int('restrictedDays');
+        $p->detainedDays = $r->int('detainedDays');
         $p->escortOf = $r->nullableString('escortOf');
+        $p->vetoesLeft = $r->int('vetoesLeft');
         $p->cooldown = $r->int('cooldown');
-        $p->everRestricted = $r->bool('everRestricted');
+        $p->everDetained = $r->bool('everDetained');
         $p->absent = $r->bool('absent');
         $p->ready = $r->bool('ready');
         $p->hand = $r->strings('hand');
         $p->pick = $r->nullableString('pick');
         $p->pickState = $r->string('pickState', self::PICK_NONE);
-        $p->vetoed = $r->nullableString('vetoed');
+        $p->vetoed = $r->strings('vetoed');
         $p->escortDecision = $r->nullableString('escortDecision');
         $p->overrode = $r->bool('overrode');
         $p->autoPicked = $r->bool('autoPicked');
         $p->vote = $r->nullableBool('vote');
-        $p->guess = $r->nullableString('guess');
+        $p->accuse = $r->nullableString('accuse');
 
         return $p;
     }

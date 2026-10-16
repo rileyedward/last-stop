@@ -4,7 +4,10 @@ namespace App\Game\Data;
 
 final readonly class Card
 {
-    public const KINDS = ['speed', 'repair', 'support', 'routine'];
+    public const KINDS = ['build', 'push', 'support', 'routine'];
+
+    /** Weather specials: free_run makes the next run cost nothing. */
+    public const SPECIALS = ['free_run'];
 
     /**
      * @param  array<string, int>  $effects  Department key => change.
@@ -14,41 +17,38 @@ final readonly class Card
         public string $name,
         public ?string $department,
         public array $effects,
-        public int $distance,
         public string $flavor,
         public string $kind,
+        public string $special = '',
     ) {}
 
     /**
-     * Speed, repair, support or routine, for a deck whose CSV has no kind
-     * column: distance up is speed, a lone +1 to your own department is
-     * routine, raising your own department is repair, and anything else
-     * helps someone else.
+     * Build, push, support or routine, for a deck whose CSV has no kind
+     * column: a lone +1 to your own department is routine, your own up and
+     * someone else down is a push, your own down is support, and anything
+     * else builds.
      *
      * @param  array<string, int>  $effects
      */
-    public static function kindOf(?string $department, array $effects, int $distance): string
+    public static function kindOf(?string $department, array $effects): string
     {
         if ($department === null) {
             return 'weather';
         }
 
-        if ($distance > 0) {
-            return 'speed';
-        }
-
         $own = $effects[$department] ?? 0;
         $others = array_filter($effects, fn (int $v, string $k) => $k !== $department && $v !== 0, ARRAY_FILTER_USE_BOTH);
 
-        if ($own === 1 && $others === [] && $distance === 0) {
-            return 'routine';
-        }
-
-        return $own > 0 ? 'repair' : 'support';
+        return match (true) {
+            $own === 1 && $others === [] => 'routine',
+            $own < 0 => 'support',
+            $own > 0 && min([0, ...array_values($others)]) < 0 => 'push',
+            default => 'build',
+        };
     }
 
     /**
-     * @return array{id: string, name: string, department: ?string, effects: array<string, int>, distance: int, flavor: string, kind: string}
+     * @return array{id: string, name: string, department: ?string, effects: array<string, int>, flavor: string, kind: string, special: string}
      */
     public function toArray(): array
     {
@@ -57,9 +57,9 @@ final readonly class Card
             'name' => $this->name,
             'department' => $this->department,
             'effects' => $this->effects,
-            'distance' => $this->distance,
             'flavor' => $this->flavor,
             'kind' => $this->kind,
+            'special' => $this->special,
         ];
     }
 }

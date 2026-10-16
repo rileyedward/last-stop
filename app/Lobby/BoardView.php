@@ -2,9 +2,9 @@
 
 namespace App\Lobby;
 
-use App\Game\Data\Card;
 use App\Game\Data\Departments;
 use App\Game\Data\GameData;
+use App\Game\Data\SettingsSchema;
 use App\Game\Engine\Engine;
 use App\Game\Engine\Game;
 use App\Game\Engine\Player;
@@ -13,7 +13,7 @@ use App\Game\Engine\Reader;
 /**
  * What one browser is allowed to see. Everyone gets the public table; a
  * seated player also gets their own secrets, and nobody gets anyone else's.
- * Hands and roles go public only once the trip is over.
+ * Roles, hands and who pulled the cord go public only once the trip is over.
  */
 final class BoardView
 {
@@ -78,7 +78,7 @@ final class BoardView
     {
         $count = count($lobby->seats);
         $setupFor = max($this->data->minPlayers(), min($this->data->maxPlayers(), $count));
-        $setup = $this->data->rulesFor($setupFor, $lobby->preset)['rules'];
+        $setup = $this->data->rulesFor($setupFor, $lobby->preset, $lobby->customRules());
 
         $wins = [];
         foreach ($lobby->wins as $id => $row) {
@@ -108,22 +108,18 @@ final class BoardView
             ], $lobby->seats),
             'platform' => array_map(fn (array $p) => [...$p, 'isMe' => $p['id'] === $viewerId], $lobby->platform),
             'preset' => $lobby->preset,
+            'custom' => $lobby->customRules(),
             'setup' => [
                 'players' => $setupFor,
-                'route' => $setup['route'],
-                'days' => $setup['days'],
-                'weather' => $setup['weather_per_day'],
-                'traitors' => $setup['traitors'],
-                'forecast' => $setup['traitor_forecast'] === 1,
-                'brakeFrom' => $setup['brake_from_night'],
-                'brakesPerPlayer' => $setup['brakes_per_player'],
-                'brakesPerGame' => $setup['brakes_per_game'],
-                'restrictDays' => $setup['restrict_days'],
-                'startScore' => $setup['start_score'],
-                'crisisAt' => $setup['crisis_at'],
-                'daySeconds' => $setup['day_seconds'],
-                'nightSeconds' => $setup['night_seconds'],
+                'departments' => $setup['departments'],
+                'rules' => $setup['rules'],
+                'standard' => $this->data->rulesFor($setupFor)['rules'],
+                'presetDays' => array_map(
+                    fn (string $preset) => $this->data->rulesFor($setupFor, $preset)['rules']['days'],
+                    array_combine(GameData::PRESETS, GameData::PRESETS),
+                ),
             ],
+            'fields' => SettingsSchema::forScreens(),
             'readyCount' => $readyCount,
             'canStart' => ! $lobby->gameInProgress()
                 && $count >= $this->data->minPlayers() && $count <= $this->data->maxPlayers()
@@ -144,6 +140,7 @@ final class BoardView
     {
         $me = $viewerId !== null ? $game->player($viewerId) : null;
         $over = $game->isOver();
+        $legs = $game->rule('legs');
 
         $departments = array_map(fn (string $key) => [
             'key' => $key,
@@ -152,6 +149,7 @@ final class BoardView
             'score' => $game->scores[$key] ?? 0,
             'atDawn' => $game->scoresAtDawn[$key] ?? ($game->scores[$key] ?? 0),
             'crisis' => $game->inCrisis($key),
+            'atLine' => ($game->scores[$key] ?? 0) >= $game->line,
         ], $game->departments);
 
         $players = array_map(fn (Player $p) => [
@@ -160,20 +158,25 @@ final class BoardView
             'department' => $p->department,
             'ready' => $p->ready,
             'status' => $this->status($game, $p),
-            'restricted' => $p->restrictedDays,
+            'detained' => $p->detainedDays,
             'escortOf' => $p->escortOf,
             'escortedBy' => $game->escortFor($p)?->id,
             'cooldown' => $p->cooldown,
-            'brakesLeft' => $p->brakesLeft,
             'overridesLeft' => $p->overridesLeft,
             'absent' => $p->absent,
             'nominable' => $this->engine->canBeNominated($p),
-            'canPull' => $this->engine->canPull($p),
+            'canNominate' => $this->engine->canNominate($game, $p),
             'voted' => $game->phase === Game::VOTE && $p->vote !== null,
-            'guessed' => $game->phase === Game::INQUIRY && $p->guess !== null,
+            'accused' => $game->phase === Game::ARRIVAL && $p->accuse !== null,
+            'everDetained' => $p->everDetained,
             'isMe' => $p->id === $viewerId,
             'traitor' => $over ? $p->traitor : null,
         ], $game->players);
+
+        $stations = [];
+        for ($leg = 0; $leg <= $legs; $leg++) {
+            $stations[] = ['name' => Engine::stationName($leg, $legs), 'line' => $game->lineFor(min($leg, $legs - 1))];
+        }
 
         $rules = $game->rules;
 
@@ -184,36 +187,39 @@ final class BoardView
             'remaining' => $game->pausedRemaining,
             'day' => $game->day,
             'days' => $rules['days'] ?? 0,
-            'route' => $rules['route'] ?? 0,
-            'distance' => $game->distance,
-            'baseToday' => $game->baseToday,
-            'slowDays' => $game->slowDays,
-            'weatherPerDay' => $rules['weather_per_day'] ?? 0,
+            'legs' => $legs,
+            'leg' => $game->leg,
+            'line' => $game->line,
+            'stations' => $stations,
+            'freeRun' => $game->freeRun,
+            'cordLeft' => $game->cordLeft,
+            'cordPulls' => $rules['cord_pulls'] ?? 0,
+            'clueSize' => $rules['cord_clue'] ?? 0,
+            'scoreMax' => $rules['score_max'] ?? 10,
             'crisisAt' => $rules['crisis_at'] ?? 0,
+            'runCost' => $rules['run_cost'] ?? 0,
             'handSize' => $rules['hand_size'] ?? 0,
             'reducedHand' => $rules['reduced_hand'] ?? 0,
-            'restrictDays' => $rules['restrict_days'] ?? 0,
+            'detainDays' => $rules['detain_days'] ?? 0,
+            'weatherPerDay' => $rules['weather_per_day'] ?? 0,
             'traitorCount' => $rules['traitors'] ?? 0,
+            'accusation' => ($rules['accusation'] ?? 1) === 1,
+            'mustPull' => ($rules['traitor_must_pull'] ?? 1) === 1,
             'departments' => $departments,
             'weather' => array_map(fn (string $id) => $this->card($id), $game->weatherToday),
-            'weatherDistance' => $game->weatherDistance,
             'players' => $players,
-            'brake' => [
-                'open' => $game->brakeOpen,
-                'used' => $game->brakeUsedTonight,
-                'trainLeft' => $game->trainBrakesLeft,
-                'perGame' => $rules['brakes_per_game'] ?? 0,
-                'fromNight' => $rules['brake_from_night'] ?? 0,
-            ],
+            'dusk' => $this->dusk($game),
+            'pulls' => array_map(fn (array $pull) => ['day' => $pull['day'], 'clue' => $pull['clue']], $game->pulls),
             'vote' => $game->vote === null ? null : [
-                'puller' => $game->vote['puller'],
+                'nominator' => $game->vote['nominator'],
                 'nominee' => $game->vote['nominee'],
             ],
-            'lastBrake' => $this->lastBrake($game),
+            'nominationsOpen' => $this->engine->nominationsOpen($game),
+            'lastVote' => $this->lastVote($game),
             'today' => $this->today($game),
             'log' => $game->log,
-            'winner' => in_array($game->phase, [Game::REVEAL, Game::INQUIRY, Game::FINISHED], true) ? $game->winner : null,
-            'cause' => in_array($game->phase, [Game::REVEAL, Game::INQUIRY, Game::FINISHED], true) ? $game->cause : null,
+            'winner' => $over ? $game->winner : null,
+            'cause' => $over ? $game->cause : null,
             'me' => $me === null ? null : $this->me($game, $me),
             'reveal' => $over ? $this->reveal($game) : null,
         ];
@@ -234,13 +240,38 @@ final class BoardView
     }
 
     /**
+     * Today's departure check as everyone sees it: never who pulled.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function dusk(Game $game): ?array
+    {
+        if ($game->dusk === null) {
+            return null;
+        }
+        $d = new Reader($game->dusk);
+
+        return [
+            'green' => $d->bool('green'),
+            'window' => $d->bool('window'),
+            'line' => $d->int('line'),
+            'scoresBefore' => $d->intMap('scoresBefore'),
+            'outcome' => $d->nullableString('outcome'),
+            'clue' => $d->strings('clue'),
+            'free' => $d->bool('free'),
+            'arrived' => $d->bool('arrived'),
+            'legBefore' => $d->int('legBefore'),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function me(Game $game, Player $me): array
     {
         $escorting = null;
         $target = $me->escortOf !== null ? $game->player($me->escortOf) : null;
-        if ($target !== null && $target->isRestricted()) {
+        if ($target !== null && $target->isDetained()) {
             $escorting = [
                 'id' => $target->id,
                 'name' => $target->name,
@@ -250,8 +281,9 @@ final class BoardView
                 'pickState' => $target->pickState,
                 'decision' => $target->escortDecision,
                 'vetoed' => $target->vetoed,
+                'vetoesLeft' => $me->vetoesLeft,
                 'overridesLeft' => $target->overridesLeft,
-                'dayOfRestriction' => $game->rule('restrict_days') - $target->restrictedDays + 1,
+                'dayOfDetention' => $game->rule('detain_days') - $target->detainedDays + 1,
             ];
         }
 
@@ -263,9 +295,9 @@ final class BoardView
             array_filter($game->players, fn (Player $p) => $p->id !== $me->id && $p->department === $me->department),
         ));
 
-        $forecast = $me->traitor && in_array($game->phase, [Game::NIGHT, Game::VOTE], true) && $game->forecast !== null
-            ? $this->card($game->forecast)
-            : null;
+        // Only traitors learn that the cord was pulled before the window closes.
+        $pulledBy = $me->traitor && $game->phase === Game::DUSK ? ($game->dusk['pulledBy'] ?? null) : null;
+        $myPulls = $me->traitor ? count(array_filter($game->pulls, fn (array $p) => $p['by'] === $me->id)) : 0;
 
         return [
             'id' => $me->id,
@@ -279,40 +311,46 @@ final class BoardView
             'vetoed' => $me->vetoed,
             'autoPicked' => $me->autoPicked,
             'overridesLeft' => $me->overridesLeft,
-            'brakesLeft' => $me->brakesLeft,
-            'canPull' => $this->engine->canPull($me),
+            'canPull' => $game->phase === Game::DUSK && $this->engine->canPull($game, $me),
+            'cordPulled' => $pulledBy !== null,
+            'pulledByMe' => $pulledBy === $me->id,
+            'traitorsPulled' => $me->traitor ? count($game->pulls) : null,
+            'myPulls' => $myPulls,
             'ready' => $me->ready,
             'vote' => $me->vote,
-            'guess' => $me->guess,
-            'restricted' => $me->restrictedDays,
+            'accuse' => $me->accuse,
+            'detained' => $me->detainedDays,
             'escortedBy' => $game->escortFor($me)?->name,
             'escorting' => $escorting,
-            'forecast' => $forecast,
-            'forecastOn' => ($game->rules['traitor_forecast'] ?? 0) === 1,
+            'canNominate' => $game->phase === Game::NIGHT && $this->engine->nominationsOpen($game) && $this->engine->canNominate($game, $me),
+            'nominatedTonight' => in_array($me->id, $game->nominatedTonight, true),
         ];
     }
 
     /**
-     * The most recent brake pull, once its vote is settled.
+     * Tonight's latest settled detention vote.
      *
      * @return array<string, mixed>|null
      */
-    private function lastBrake(Game $game): ?array
+    private function lastVote(Game $game): ?array
     {
-        $last = end($game->history);
-        if ($last === false || ! isset($last['brake']) || ! is_array($last['brake']) || ! array_key_exists('passed', $last['brake'])) {
+        if (! in_array($game->phase, [Game::NIGHT, Game::VOTE], true)) {
             return null;
         }
-        $brake = new Reader($last['brake']);
+        $last = end($game->history);
+        $noms = is_array($last) ? ($last['nominations'] ?? []) : [];
+        if (! is_array($noms) || $noms === []) {
+            return null;
+        }
+        $vote = new Reader(is_array(end($noms)) ? end($noms) : []);
 
         return [
-            'day' => (new Reader($last))->int('day'),
-            'puller' => $brake->string('puller'),
-            'nominee' => $brake->string('nominee'),
-            'votes' => $brake->boolMap('votes'),
-            'yes' => $brake->int('yes'),
-            'no' => $brake->int('no'),
-            'passed' => $brake->bool('passed'),
+            'nominator' => $vote->string('nominator'),
+            'nominee' => $vote->string('nominee'),
+            'votes' => $vote->boolMap('votes'),
+            'yes' => $vote->int('yes'),
+            'no' => $vote->int('no'),
+            'passed' => $vote->bool('passed'),
         ];
     }
 
@@ -331,16 +369,10 @@ final class BoardView
 
             return [
                 'day' => $day->int('day'),
-                'base' => $day->int('base'),
                 'weather' => array_map(fn (string $id) => $this->card($id), $day->strings('weather')),
-                'weatherDistance' => $day->int('weatherDistance'),
-                'cardDistance' => $day->int('cardDistance'),
-                'dayDistance' => $day->int('dayDistance'),
                 'scoresBefore' => $day->intMap('scoresBefore'),
                 'scoresAfterWeather' => $day->intMap('scoresAfterWeather'),
                 'scoresAfter' => $day->intMap('scoresAfter'),
-                'distanceBefore' => $day->int('distanceBefore'),
-                'distanceAfter' => $day->int('distanceAfter'),
                 'picks' => array_map(function (array $pick) {
                     $p = new Reader($pick);
 
@@ -349,7 +381,7 @@ final class BoardView
                         'card' => $p->nullableString('pick') !== null ? $this->card($p->string('pick')) : null,
                         'override' => $p->bool('override'),
                         'auto' => $p->bool('auto'),
-                        'vetoed' => $p->nullableString('vetoed') !== null,
+                        'vetoed' => $p->strings('vetoed') !== [],
                     ];
                 }, $day->maps('picks')),
             ];
@@ -367,27 +399,15 @@ final class BoardView
     {
         $traitors = array_map(fn (Player $p) => $p->id, $game->traitors());
 
-        $guesses = [];
-        foreach ($game->players as $p) {
-            if (! $p->traitor) {
-                $guesses[] = [
-                    'id' => $p->id,
-                    'suspect' => $p->guess,
-                    'correct' => $p->guess !== null && in_array($p->guess, $traitors, true),
-                ];
-            }
-        }
-
         $days = array_map(function (array $record) {
             $day = new Reader($record);
-            $brake = $day->reader('brake');
+            $dusk = $day->reader('dusk');
+            $arrival = $day->reader('arrival');
 
             return [
                 'day' => $day->int('day'),
                 'weather' => array_map(fn (string $id) => $this->card($id), $day->strings('weather')),
-                'dayDistance' => $day->int('dayDistance'),
                 'scoresAfter' => $day->intMap('scoresAfter'),
-                'distanceAfter' => $day->int('distanceAfter'),
                 'picks' => array_map(function (array $pick) {
                     $p = new Reader($pick);
 
@@ -395,27 +415,50 @@ final class BoardView
                         'player' => $p->string('player'),
                         'hand' => array_map(fn (string $id) => $this->card($id), $p->strings('hand')),
                         'pick' => $p->nullableString('pick'),
-                        'vetoed' => $p->nullableString('vetoed'),
+                        'vetoed' => $p->strings('vetoed'),
                         'override' => $p->bool('override'),
                         'auto' => $p->bool('auto'),
+                        'escort' => $p->nullableString('escort'),
                     ];
                 }, $day->maps('picks')),
-                'brake' => $day->has('brake') ? [
-                    'puller' => $brake->string('puller'),
-                    'nominee' => $brake->string('nominee'),
-                    'passed' => $brake->bool('passed'),
-                    'yes' => $brake->int('yes'),
-                    'no' => $brake->int('no'),
+                'dusk' => $day->has('dusk') ? [
+                    'green' => $dusk->bool('green'),
+                    'outcome' => $dusk->string('outcome'),
+                    'puller' => $dusk->nullableString('puller'),
+                    'clue' => $dusk->strings('clue'),
+                    'free' => $dusk->bool('free'),
+                    'legAfter' => $dusk->int('legAfter'),
+                    'scoresAfter' => $dusk->intMap('scoresAfter'),
+                ] : null,
+                'nominations' => array_map(function (array $n) {
+                    $v = new Reader($n);
+
+                    return [
+                        'nominator' => $v->string('nominator'),
+                        'nominee' => $v->string('nominee'),
+                        'yes' => $v->int('yes'),
+                        'no' => $v->int('no'),
+                        'passed' => $v->bool('passed'),
+                    ];
+                }, $day->maps('nominations')),
+                'arrival' => $day->has('arrival') ? [
+                    'tally' => $arrival->intMap('tally'),
+                    'top' => $arrival->nullableString('top'),
+                    'tie' => $arrival->bool('tie'),
                 ] : null,
             ];
         }, $game->history);
 
         return [
             'traitors' => $traitors,
-            'guesses' => $guesses,
+            'pulls' => $game->pulls,
+            'accusations' => array_values(array_map(fn (Player $p) => ['id' => $p->id, 'suspect' => $p->accuse], array_filter(
+                $game->players,
+                fn (Player $p) => $p->accuse !== null,
+            ))),
             'days' => $days,
-            'brakes' => count(array_filter($days, fn (array $d) => $d['brake'] !== null)),
-            'everRestricted' => array_values(array_map(fn (Player $p) => $p->id, array_filter($game->players, fn (Player $p) => $p->everRestricted))),
+            'everDetained' => array_values(array_map(fn (Player $p) => $p->id, array_filter($game->players, fn (Player $p) => $p->everDetained))),
+            'leg' => $game->leg,
         ];
     }
 
@@ -424,14 +467,6 @@ final class BoardView
      */
     private function card(string $id): array
     {
-        return $this->cardData($this->data->card($id));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function cardData(Card $card): array
-    {
-        return $card->toArray();
+        return $this->data->card($id)->toArray();
     }
 }

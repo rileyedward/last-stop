@@ -1,35 +1,23 @@
 setting,value,notes
-tasks_csv,../design/rules-v0/tasks.csv,Task cards (path relative to this file)
-weather_csv,../design/rules-v0/weather-winter.csv,Weather cards (path relative to this file)
-players_csv,players.csv,Player-count table (departments / traitors / route / days)
-start_score,6,Every department starts here (scale 0-10)
+tasks_csv,tasks.csv,Task cards
+weather_csv,weather.csv,Weather cards
+players_csv,players.csv,Per player count: departments / traitors / legs / days / weather each dawn / starting score / starting line / names in a cord clue
+score_max,10,Department scores run 0 to this
 crisis_at,2,A department is in crisis at or below this score
-base_speed,1,Automatic distance per day
-weather_per_day,1,Weather cards drawn each dawn
+line_rise,1,How much the line rises
+line_rise_every,2,Legs between rises (0 = never rises)
+run_cost,1,Points every department loses when the train runs a leg
 hand_size,3,Cards drawn per player per day
 reduced_hand,2,Hand size for escorts and departments in crisis
-brake_from_night,3,First night the emergency brake can be pulled
-brakes_per_player,2,Brake pulls each player gets per game
-brakes_per_game,3,Brake pulls the whole train gets per game (0 = no cap)
-brake_rest_nights,0,Nights after a pull before anyone can pull again (0 = next night is fine)
-brake_slow_days,1,Days the train's base speed drops to 0 after a pull
-restrict_days,2,Days a restriction lasts
-cooldown_nights,1,Nights after a restriction ends before the same player can be nominated again
+cord_pulls,2,Cord pulls per game (shared by the traitors)
+cord_green_only,1,1 = the cord can only be pulled on a green signal
+cord_clue,4,Names in the clue after a pull (puller included; 0 = no clue). players.csv can set it per player count
+traitor_must_pull,1,1 = a traitor who never pulled the cord cannot win by escaping the arrival vote
+detain_days,2,Days a detention lasts
+cooldown_nights,1,Nights after release before the same player can be nominated again
+one_detained_at_a_time,1,1 = no nominations while someone is detained
+detained_can_pull,0,1 = a detained player can still pull the cord
+escort_vetoes_per_day,1,Vetoes an escort gets each day
 overrides_per_player,1,Veto overrides each player gets per game
-table_talk,1,1 = players settle picks one at a time and see earlier picks (voice chat); 0 = everyone picks blind
-traitor_forecast,1,1 = traitor sees tomorrow's weather each night; 0 = off
-traitor_budget,1.5,How much suspicion the traitor bot will accept per pick (higher = bolder)
-traitor_budget_hot,0.4,Budget when the traitor is already the top suspect
-traitor_frames,1,1 = traitor bot uses the brake to restrict an innocent suspect; 0 = never
-traitor_frame_threshold,2.0,Public suspicion an innocent needs before the traitor tries to frame them
-honest_noise,0.6,Random disagreement in how honest bots value cards (0 = perfect play)
-vote_noise,1.0,Random disagreement between players when judging suspicion
-brake_threshold,3.0,Suspicion at which an honest bot pulls the brake
-brake_margin,1.0,How far the top suspect must lead the second before an honest bot pulls
-vote_threshold,2.0,Suspicion at which an honest bot votes yes
-veto_threshold,1.0,How much worse than the best card a pick must be for an honest escort to veto it
-escort_trust,0.8,How much the table believes an escort's report on a restricted player
-frame_claim,2.0,Fake suspicion a traitor escort claims about an innocent they escort
-veto_bump,0.5,Public suspicion added to a player whose pick is vetoed
-override_bump,1.0,Public suspicion added for an OVERRIDE
-failed_brake_bump,0.5,Public suspicion added to a puller whose vote fails
+crisis_loss,0,1 = two departments in crisis ends the game (traitor wins)
+accusation,1,1 = on arrival the crew must vote out a traitor to win

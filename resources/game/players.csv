@@ -1,8 +1,8 @@
-players,departments,traitors,route,days,weather_per_day
-4,Engineering|Operations|Passenger Services,1,19,9,3
-5,Engineering|Operations|Passenger Services|Security,1,17,10,3
-6,Engineering|Operations|Passenger Services|Security,1,22,10,3
-7,Engineering|Operations|Passenger Services|Security,1,19,10,4
-8,Engineering|Operations|Passenger Services|Security,1,25,11,4
-9,Engineering|Operations|Passenger Services|Security,2,21,11,5
-10,Engineering|Operations|Passenger Services|Security,2,26,11,5
+players,departments,traitors,legs,days,weather_per_day,start_score,line_start,cord_clue
+4,Engineering|Operations|Passenger Services,1,5,10,3,4,5,3
+5,Engineering|Operations|Passenger Services|Security,1,5,11,3,4,5,4
+6,Engineering|Operations|Passenger Services|Security,1,5,10,4,4,5,4
+7,Engineering|Operations|Passenger Services|Security,1,5,10,5,4,5,4
+8,Engineering|Operations|Passenger Services|Security,1,5,9,6,4,5,4
+9,Engineering|Operations|Passenger Services|Security,2,5,11,7,4,5,3
+10,Engineering|Operations|Passenger Services|Security,2,5,11,8,4,5,3

@@ -23,6 +23,7 @@ Route::middleware(EnsurePlayerToken::class)->group(function () {
         Route::post('leave', [BoardController::class, 'leave'])->name('leave');
         Route::post('ready', [BoardController::class, 'ready'])->name('ready');
         Route::post('preset', [BoardController::class, 'preset'])->name('preset');
+        Route::post('settings', [BoardController::class, 'custom'])->name('settings');
         Route::post('start', [BoardController::class, 'start'])->name('start');
         Route::post('kick', [BoardController::class, 'kick'])->name('kick');
         Route::post('host', [BoardController::class, 'host'])->name('host');

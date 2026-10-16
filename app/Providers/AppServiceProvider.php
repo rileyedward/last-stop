@@ -21,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(GameData::class, fn () => GameData::default());
+        $this->app->singleton(GameData::class, fn () => GameData::shipped());
         $this->app->bind(Engine::class, fn ($app) => new Engine($app->make(GameData::class), new Randomizer));
     }
 

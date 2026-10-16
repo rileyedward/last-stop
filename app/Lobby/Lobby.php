@@ -27,7 +27,15 @@ final class Lobby
      */
     public array $platform = [];
 
+    /** Easy, Standard, Hard, or Custom (Standard plus $custom). */
     public string $preset = 'standard';
+
+    /**
+     * The host's own values in a Custom lobby, on top of Standard.
+     *
+     * @var array<string, int>
+     */
+    public array $custom = [];
 
     /**
      * Wins per player id. Kept after someone leaves, until the lobby closes.
@@ -126,6 +134,16 @@ final class Lobby
         return $this->game?->player($id)->name ?? null;
     }
 
+    /**
+     * The custom values that apply: only in a Custom lobby.
+     *
+     * @return array<string, int>
+     */
+    public function customRules(): array
+    {
+        return $this->preset === 'custom' ? $this->custom : [];
+    }
+
     public function hostName(): string
     {
         return $this->hostId !== null ? ($this->nameOf($this->hostId) ?? 'The host') : 'The host';
@@ -142,6 +160,7 @@ final class Lobby
             'seats' => $this->seats,
             'platform' => $this->platform,
             'preset' => $this->preset,
+            'custom' => $this->custom,
             'wins' => $this->wins,
             'trips' => $this->trips,
             'game' => $this->game?->toArray(),
@@ -171,6 +190,7 @@ final class Lobby
             'name' => (new Reader($s))->string('name'),
         ], $r->maps('platform'));
         $lobby->preset = $r->string('preset', 'standard');
+        $lobby->custom = $r->intMap('custom');
         foreach ($r->map('wins') as $id => $row) {
             $w = new Reader(is_array($row) ? $row : []);
             $lobby->wins[$id] = ['name' => $w->string('name'), 'crew' => $w->int('crew'), 'traitor' => $w->int('traitor')];

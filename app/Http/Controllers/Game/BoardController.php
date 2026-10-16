@@ -85,6 +85,13 @@ class BoardController extends Controller
         return $this->attempt(fn () => $this->lobbies->setPreset($code, $this->id($request), (string) $request->input('preset')));
     }
 
+    public function custom(Request $request, string $code): RedirectResponse
+    {
+        $values = $request->input('values');
+
+        return $this->attempt(fn () => $this->lobbies->setCustom($code, $this->id($request), is_array($values) ? $values : []));
+    }
+
     public function start(Request $request, string $code): RedirectResponse
     {
         return $this->attempt(fn () => $this->lobbies->start($code, $this->id($request)));
@@ -126,12 +133,13 @@ class BoardController extends Controller
     }
 
     /**
-     * A move in the game: ready, pick, escort, override, brake, vote or guess.
+     * A move in the game: ready, pick, escort, override, cord, nominate,
+     * vote or accuse.
      */
     public function act(Request $request, string $code): RedirectResponse
     {
         $validated = $request->validate([
-            'action' => ['required', 'string', 'in:ready,pick,escort,override,brake,vote,guess'],
+            'action' => ['required', 'string', 'in:ready,pick,escort,override,cord,nominate,vote,accuse'],
             'card' => ['nullable', 'string', 'max:16'],
             'decision' => ['nullable', 'string', 'in:allow,veto'],
             'nominee' => ['nullable', 'string', 'max:32'],

@@ -5,6 +5,7 @@ namespace App\Lobby;
 use App\Events\PlayerUpdated;
 use App\Events\TableUpdated;
 use App\Game\Data\GameData;
+use App\Game\Data\SettingsSchema;
 use App\Game\Engine\Engine;
 use App\Game\Engine\Game;
 use App\Jobs\AdvanceGame;
@@ -107,12 +108,9 @@ final class LobbyService
     public function setPreset(string $code, string $id, string $preset): Lobby
     {
         return $this->change($code, function (Lobby $lobby) use ($id, $preset) {
-            $this->mustBeHost($lobby, $id);
-            if ($lobby->gameInProgress()) {
-                throw new LobbyError("Settings can't change mid-trip.");
-            }
-            if (! in_array($preset, GameData::PRESETS, true)) {
-                throw new LobbyError('Pick Easy, Standard or Hard.');
+            $this->mustChangeSettings($lobby, $id);
+            if (! in_array($preset, [...GameData::PRESETS, 'custom'], true)) {
+                throw new LobbyError('Pick Easy, Standard, Hard or Custom.');
             }
             if ($preset === $lobby->preset) {
                 return;
@@ -121,6 +119,41 @@ final class LobbyService
             $this->clearReady($lobby);
             $lobby->notice = $lobby->hostName().' changed the trip to '.ucfirst($preset).". Everyone's Ready was cleared.";
         });
+    }
+
+    /**
+     * Save the host's own values. Only values that differ from Standard for
+     * the current table are kept; if none do, the lobby is Standard again.
+     *
+     * @param  array<mixed>  $values
+     */
+    public function setCustom(string $code, string $id, array $values): Lobby
+    {
+        return $this->change($code, function (Lobby $lobby) use ($id, $values) {
+            $this->mustChangeSettings($lobby, $id);
+            $base = $this->data->rulesFor($this->setupCount($lobby))['rules'];
+            $custom = array_filter(
+                SettingsSchema::clean($values),
+                fn (int $value, string $key) => ($base[$key] ?? null) !== $value,
+                ARRAY_FILTER_USE_BOTH,
+            );
+            $preset = $custom === [] ? 'standard' : 'custom';
+            if ($custom === $lobby->customRules() && $preset === $lobby->preset) {
+                return;
+            }
+            $lobby->custom = $custom;
+            $lobby->preset = $preset;
+            $this->clearReady($lobby);
+            $lobby->notice = $lobby->hostName().' changed the settings. Everyone\'s Ready was cleared.';
+        });
+    }
+
+    /**
+     * The player count the lobby's settings are shown for.
+     */
+    public function setupCount(Lobby $lobby): int
+    {
+        return max($this->data->minPlayers(), min($this->data->maxPlayers(), count($lobby->seats)));
     }
 
     public function start(string $code, string $id): Lobby
@@ -138,7 +171,7 @@ final class LobbyService
                 throw new LobbyError('Everyone has to be ready first.');
             }
 
-            $setup = $this->data->rulesFor($count, $lobby->preset);
+            $setup = $this->data->rulesFor($count, $lobby->preset, $lobby->customRules());
             $seats = array_map(fn (array $s) => ['id' => $s['id'], 'name' => $s['name']], $lobby->seats);
             $lobby->game = $this->engine->start($seats, $setup['rules'], $setup['departments'], $now);
             $lobby->recorded = false;
@@ -368,6 +401,14 @@ final class LobbyService
     {
         foreach ($lobby->seats as $i => $seat) {
             $lobby->seats[$i]['ready'] = false;
+        }
+    }
+
+    private function mustChangeSettings(Lobby $lobby, string $id): void
+    {
+        $this->mustBeHost($lobby, $id);
+        if ($lobby->gameInProgress()) {
+            throw new LobbyError("Settings can't change mid-trip.");
         }
     }
 

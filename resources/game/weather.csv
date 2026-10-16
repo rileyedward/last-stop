@@ -1,0 +1,13 @@
+card,engineering,operations,passenger_services,security,special,flavor
+Frozen switches,-2,0,0,0,,
+Whiteout,0,-1,0,-1,,Visibility zero; signals and lookouts struggle
+Cold snap,-1,0,-1,0,,
+Snowdrift on the line,0,-2,0,0,,
+Heating failure in carriage C,0,0,-2,0,,
+Stranded travellers board,0,0,-1,-1,,
+Avalanche warning,0,0,0,-2,,
+Ice on the rails,-2,0,0,0,,
+Blizzard,-1,-1,-1,0,,
+Signal lines down,0,-2,0,0,,
+Clear skies,0,0,0,0,,A rare quiet day
+Tailwind,0,0,0,0,free_run,The next run costs nothing

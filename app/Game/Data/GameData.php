@@ -5,36 +5,56 @@ namespace App\Game\Data;
 use InvalidArgumentException;
 
 /**
- * Everything the game reads from resources/game: rule numbers, the
- * player-count table, presets, timers and the card decks. Nothing in the
- * engine hard-codes a rule number; it all comes through here.
+ * Everything the game reads: rule numbers, the player-count table, presets,
+ * timers and the card decks. The shipped defaults live as CSVs in
+ * resources/game; admin edits replace whole sources (see AdminDefaults).
+ * Nothing in the engine hard-codes a rule number; it all comes through here.
  */
 final class GameData
 {
-    /** Rows of settings.csv the app uses. The rest are simulator bot settings. */
+    /** Rows of settings.csv the app uses. */
     public const RULE_KEYS = [
-        'start_score', 'crisis_at', 'base_speed', 'hand_size', 'reduced_hand',
-        'brake_from_night', 'brakes_per_player', 'brakes_per_game', 'brake_rest_nights',
-        'brake_slow_days', 'restrict_days', 'cooldown_nights', 'overrides_per_player',
-        'traitor_forecast',
+        'score_max', 'crisis_at', 'line_rise', 'line_rise_every', 'run_cost',
+        'hand_size', 'reduced_hand', 'cord_pulls', 'cord_green_only', 'cord_clue',
+        'traitor_must_pull', 'detain_days', 'cooldown_nights', 'one_detained_at_a_time',
+        'detained_can_pull', 'escort_vetoes_per_day', 'overrides_per_player',
+        'crisis_loss', 'accusation',
     ];
 
+    /** Rules that are on/off switches. */
+    public const SWITCH_KEYS = [
+        'cord_green_only', 'traitor_must_pull', 'one_detained_at_a_time',
+        'detained_can_pull', 'crisis_loss', 'accusation',
+    ];
+
+    /** Columns of players.csv, set per player count. */
+    public const TABLE_KEYS = ['traitors', 'legs', 'days', 'weather_per_day', 'start_score', 'line_start', 'cord_clue'];
+
     public const TIMER_KEYS = [
-        'boarding_seconds', 'dawn_seconds', 'day_seconds', 'reveal_seconds',
-        'night_seconds', 'vote_seconds', 'after_vote_seconds', 'inquiry_seconds',
+        'boarding_seconds', 'dawn_seconds', 'day_seconds', 'reveal_seconds', 'dusk_seconds',
+        'departure_seconds', 'night_seconds', 'vote_seconds', 'after_vote_seconds', 'arrival_seconds',
     ];
 
     public const PRESETS = ['easy', 'standard', 'hard'];
 
-    private static ?self $default = null;
+    /** The data sources, as CSV file names and their columns. */
+    public const SOURCES = [
+        'settings' => ['file' => 'settings.csv', 'columns' => ['setting', 'value', 'notes']],
+        'timers' => ['file' => 'timers.csv', 'columns' => ['setting', 'value', 'notes']],
+        'players' => ['file' => 'players.csv', 'columns' => ['players', 'departments', 'traitors', 'legs', 'days', 'weather_per_day', 'start_score', 'line_start', 'cord_clue']],
+        'presets' => ['file' => 'presets.csv', 'columns' => ['preset', 'days_offset', 'notes']],
+        'tasks' => ['file' => 'tasks.csv', 'columns' => ['department', 'card', 'kind', 'engineering', 'operations', 'passenger_services', 'security', 'flavor']],
+        'weather' => ['file' => 'weather.csv', 'columns' => ['card', 'engineering', 'operations', 'passenger_services', 'security', 'special', 'flavor']],
+    ];
 
     /**
-     * @param  array<string, int>  $settings
+     * @param  array<string, int>  $settings  Rule and timer numbers.
      * @param  array<string, list<Card>>  $tasks  Department key => deck.
      * @param  list<Card>  $weather
-     * @param  array<int, array{departments: list<string>, traitors: int, route: int, days: int, weather_per_day: int}>  $table
-     * @param  array<int, array<string, int>>  $presets  Players => preset => route.
+     * @param  array<int, array{departments: list<string>, traitors: int, legs: int, days: int, weather_per_day: int, start_score: int, line_start: int, cord_clue: int}>  $table
+     * @param  array<string, int>  $presets  Preset => days offset.
      * @param  array<string, Card>  $cards
+     * @param  array<string, list<array<string, string>>>  $rows  The sources as read.
      */
     private function __construct(
         public readonly array $settings,
@@ -43,19 +63,44 @@ final class GameData
         public readonly array $table,
         public readonly array $presets,
         private readonly array $cards,
+        public readonly array $rows,
     ) {}
 
-    public static function default(): self
+    /**
+     * The shipped defaults in resources/game, without admin edits.
+     */
+    public static function shipped(): self
     {
-        return self::$default ??= self::load(resource_path('game'));
+        return self::load(resource_path('game'));
     }
 
-    public static function load(string $dir): self
+    /**
+     * Read the CSVs in $dir; any source in $overrides replaces its file.
+     *
+     * @param  array<string, list<array<string, string>>>  $overrides
+     */
+    public static function load(string $dir, array $overrides = []): self
+    {
+        $rows = [];
+        foreach (self::SOURCES as $source => $meta) {
+            $rows[$source] = $overrides[$source] ?? self::csvRows($dir.'/'.$meta['file']);
+        }
+
+        return self::fromRows($rows);
+    }
+
+    /**
+     * Build the game data from source rows, checking everything the game
+     * needs is there. Throws with a message fit to show an admin.
+     *
+     * @param  array<string, list<array<string, string>>>  $rows
+     */
+    public static function fromRows(array $rows): self
     {
         $raw = [];
-        foreach (['settings.csv', 'timers.csv'] as $file) {
-            foreach (self::rows($dir.'/'.$file) as $row) {
-                $raw[trim($row['setting'])] = trim($row['value']);
+        foreach (['settings', 'timers'] as $source) {
+            foreach ($rows[$source] ?? [] as $row) {
+                $raw[trim($row['setting'] ?? '')] = trim($row['value'] ?? '');
             }
         }
 
@@ -70,58 +115,77 @@ final class GameData
         $cards = [];
         $tasks = [];
         $counts = [];
-        foreach (self::rows($dir.'/'.self::fileName($raw['tasks_csv'] ?? 'tasks.csv')) as $row) {
-            $dept = Departments::keyFor($row['department']);
+        foreach ($rows['tasks'] ?? [] as $i => $row) {
+            $dept = self::department($row['department'] ?? '', 'tasks', $i);
             $counts[$dept] = ($counts[$dept] ?? 0) + 1;
-            $card = self::makeCard(sprintf('%s-%02d', Departments::CODES[$dept], $counts[$dept]), $row, $dept);
+            $card = self::makeCard(sprintf('%s-%02d', Departments::CODES[$dept], $counts[$dept]), $row, $dept, $i, 'tasks');
             $tasks[$dept][] = $card;
             $cards[$card->id] = $card;
         }
 
         $weather = [];
-        foreach (self::rows($dir.'/'.self::fileName($raw['weather_csv'] ?? 'weather-winter.csv')) as $i => $row) {
-            $card = self::makeCard(sprintf('WX-%02d', $i + 1), $row, null);
+        foreach ($rows['weather'] ?? [] as $i => $row) {
+            $card = self::makeCard(sprintf('WX-%02d', $i + 1), $row, null, $i, 'weather');
             $weather[] = $card;
             $cards[$card->id] = $card;
         }
+        if ($weather === []) {
+            throw new InvalidArgumentException('The weather deck has no cards.');
+        }
 
+        $defaultClue = $settings['cord_clue'] ?? 0;
         $table = [];
-        foreach (self::rows($dir.'/'.self::fileName($raw['players_csv'] ?? 'players.csv')) as $row) {
-            $players = (int) $row['players'];
+        foreach ($rows['players'] ?? [] as $i => $row) {
+            $players = self::number($row, 'players', 'players', $i);
+            $departments = array_map(
+                fn (string $name) => self::department($name, 'players', $i),
+                array_filter(array_map('trim', explode('|', $row['departments'] ?? '')), fn ($d) => $d !== ''),
+            );
+            if ($departments === []) {
+                throw new InvalidArgumentException('players row '.($i + 1).' has no departments.');
+            }
+            foreach ($departments as $dept) {
+                if (($tasks[$dept] ?? []) === []) {
+                    throw new InvalidArgumentException('players row '.($i + 1).' uses '.Departments::NAMES[$dept].', which has no task cards.');
+                }
+            }
             $table[$players] = [
-                'departments' => array_map(Departments::keyFor(...), explode('|', $row['departments'])),
-                'traitors' => (int) $row['traitors'],
-                'route' => (int) $row['route'],
-                'days' => (int) $row['days'],
-                'weather_per_day' => trim($row['weather_per_day'] ?? '') !== ''
-                    ? (int) $row['weather_per_day']
-                    : (int) ($raw['weather_per_day'] ?? 1),
+                'departments' => array_values($departments),
+                'traitors' => self::number($row, 'traitors', 'players', $i),
+                'legs' => self::number($row, 'legs', 'players', $i),
+                'days' => self::number($row, 'days', 'players', $i),
+                'weather_per_day' => self::number($row, 'weather_per_day', 'players', $i),
+                'start_score' => self::number($row, 'start_score', 'players', $i),
+                'line_start' => self::number($row, 'line_start', 'players', $i),
+                'cord_clue' => trim($row['cord_clue'] ?? '') !== ''
+                    ? self::number($row, 'cord_clue', 'players', $i)
+                    : $defaultClue,
             ];
+        }
+        if ($table === []) {
+            throw new InvalidArgumentException('The player-count table is empty.');
         }
         ksort($table);
 
-        // Easy and Hard routes: players.csv columns when the simulator
-        // exports them, otherwise presets.csv.
-        $presets = [];
-        if (is_file($dir.'/presets.csv')) {
-            foreach (self::rows($dir.'/presets.csv') as $row) {
-                $presets[(int) $row['players']] = ['easy' => (int) $row['easy_route'], 'hard' => (int) $row['hard_route']];
-            }
-        }
-        foreach (self::rows($dir.'/'.self::fileName($raw['players_csv'] ?? 'players.csv')) as $row) {
-            foreach (['easy', 'hard'] as $preset) {
-                if (trim($row[$preset.'_route'] ?? '') !== '') {
-                    $presets[(int) $row['players']][$preset] = (int) $row[$preset.'_route'];
-                }
+        $presets = ['standard' => 0];
+        foreach ($rows['presets'] ?? [] as $i => $row) {
+            $preset = strtolower(trim($row['preset'] ?? ''));
+            if (in_array($preset, self::PRESETS, true)) {
+                $presets[$preset] = self::number($row, 'days_offset', 'presets', $i, true);
             }
         }
 
-        return new self($settings, $tasks, $weather, $table, $presets, $cards);
+        return new self($settings, $tasks, $weather, $table, $presets, $cards, $rows);
     }
 
     public function card(string $id): Card
     {
         return $this->cards[$id] ?? throw new InvalidArgumentException("Unknown card [{$id}].");
+    }
+
+    public function hasCard(string $id): bool
+    {
+        return isset($this->cards[$id]);
     }
 
     public function minPlayers(): int
@@ -139,75 +203,148 @@ final class GameData
     }
 
     /**
-     * The rule numbers for one game: settings.csv, the player-count row and
-     * the chosen preset's route, merged into one flat set.
+     * The rule numbers for one game: settings and timers, the player-count
+     * row with the preset's day offset, then any custom values on top.
      *
+     * @param  array<string, int>  $custom
      * @return array{rules: array<string, int>, departments: list<string>}
      */
-    public function rulesFor(int $players, string $preset = 'standard'): array
+    public function rulesFor(int $players, string $preset = 'standard', array $custom = []): array
     {
         $row = $this->table[$players] ?? throw new InvalidArgumentException("No setup for {$players} players.");
 
-        $route = $row['route'];
-        if ($preset !== 'standard' && isset($this->presets[$players][$preset])) {
-            $route = $this->presets[$players][$preset];
+        $rules = [
+            ...$this->settings,
+            'traitors' => $row['traitors'],
+            'legs' => $row['legs'],
+            'days' => max(1, $row['days'] + ($this->presets[$preset] ?? 0)),
+            'weather_per_day' => $row['weather_per_day'],
+            'start_score' => $row['start_score'],
+            'line_start' => $row['line_start'],
+            'cord_clue' => $row['cord_clue'],
+        ];
+        foreach ($custom as $key => $value) {
+            if (array_key_exists($key, $rules)) {
+                $rules[$key] = $value;
+            }
         }
 
-        return [
-            'rules' => [
-                ...$this->settings,
-                'route' => $route,
-                'days' => $row['days'],
-                'traitors' => $row['traitors'],
-                'weather_per_day' => $row['weather_per_day'],
-            ],
-            'departments' => $row['departments'],
-        ];
+        return ['rules' => $rules, 'departments' => $row['departments']];
+    }
+
+    /**
+     * Every key a host can set in a custom lobby.
+     *
+     * @return list<string>
+     */
+    public static function customKeys(): array
+    {
+        return [...self::TABLE_KEYS, ...self::RULE_KEYS, ...self::TIMER_KEYS];
+    }
+
+    /**
+     * Rows as CSV text, for export.
+     */
+    public function csv(string $source): string
+    {
+        $columns = self::SOURCES[$source]['columns'] ?? throw new InvalidArgumentException("Unknown source [{$source}].");
+        $handle = fopen('php://temp', 'r+');
+        assert($handle !== false);
+        fputcsv($handle, $columns, escape: '\\');
+        foreach ($this->rows[$source] ?? [] as $row) {
+            fputcsv($handle, array_map(fn (string $c) => $row[$c] ?? '', $columns), escape: '\\');
+        }
+        rewind($handle);
+        $text = (string) stream_get_contents($handle);
+        fclose($handle);
+
+        return $text;
     }
 
     /**
      * @param  array<string, string>  $row
      */
-    private static function makeCard(string $id, array $row, ?string $dept): Card
+    private static function makeCard(string $id, array $row, ?string $dept, int $index, string $source): Card
     {
+        $name = trim($row['card'] ?? '');
+        if ($name === '') {
+            throw new InvalidArgumentException("{$source} row ".($index + 1).' has no card name.');
+        }
         $effects = [];
         foreach (array_keys(Departments::NAMES) as $key) {
-            $value = (int) ($row[$key] ?? 0);
-            if ($value !== 0) {
-                $effects[$key] = $value;
+            $value = trim($row[$key] ?? '');
+            if ($value !== '' && ! preg_match('/^-?\d+$/', $value)) {
+                throw new InvalidArgumentException("{$source} row ".($index + 1)." ({$name}): {$key} must be a whole number.");
+            }
+            if ((int) $value !== 0) {
+                $effects[$key] = (int) $value;
             }
         }
-        $distance = (int) ($row['distance'] ?? 0);
         $kind = strtolower(trim($row['kind'] ?? ''));
         if ($dept === null || ! in_array($kind, Card::KINDS, true)) {
-            $kind = Card::kindOf($dept, $effects, $distance);
+            $kind = Card::kindOf($dept, $effects);
+        }
+        $special = strtolower(trim($row['special'] ?? ''));
+        if ($special !== '' && ! in_array($special, Card::SPECIALS, true)) {
+            throw new InvalidArgumentException("{$source} row ".($index + 1)." ({$name}): unknown special [{$special}].");
         }
 
         return new Card(
             id: $id,
-            name: trim($row['card']),
+            name: $name,
             department: $dept,
             effects: $effects,
-            distance: $distance,
             flavor: trim($row['flavor'] ?? ''),
             kind: $kind,
+            special: $special,
         );
     }
 
-    private static function fileName(string $path): string
+    private static function department(string $name, string $source, int $index): string
     {
-        return basename(trim($path));
+        try {
+            return Departments::keyFor($name);
+        } catch (InvalidArgumentException) {
+            throw new InvalidArgumentException("{$source} row ".($index + 1).": unknown department [{$name}].");
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $row
+     */
+    private static function number(array $row, string $column, string $source, int $index, bool $signed = false): int
+    {
+        $value = trim($row[$column] ?? '');
+        if (! preg_match($signed ? '/^-?\d+$/' : '/^\d+$/', $value)) {
+            throw new InvalidArgumentException("{$source} row ".($index + 1).": {$column} must be a whole number.");
+        }
+
+        return (int) $value;
     }
 
     /**
      * @return list<array<string, string>>
      */
-    private static function rows(string $path): array
+    public static function csvRows(string $path): array
     {
-        $handle = @fopen($path, 'r');
-        if ($handle === false) {
+        $text = @file_get_contents($path);
+        if ($text === false) {
             throw new InvalidArgumentException("Cannot read game data file [{$path}].");
         }
+
+        return self::parseCsv($text);
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    public static function parseCsv(string $text): array
+    {
+        $text = preg_replace('/^\xEF\xBB\xBF/', '', $text) ?? $text;
+        $handle = fopen('php://temp', 'r+');
+        assert($handle !== false);
+        fwrite($handle, $text);
+        rewind($handle);
 
         $header = fgetcsv($handle, escape: '\\');
         if ($header === false) {
@@ -224,7 +361,7 @@ final class GameData
             }
             $row = [];
             foreach ($header as $i => $name) {
-                $row[$name] = (string) ($line[$i] ?? '');
+                $row[$name] = trim((string) ($line[$i] ?? ''));
             }
             $rows[] = $row;
         }

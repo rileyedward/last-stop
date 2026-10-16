@@ -1,41 +1,41 @@
-department,card,kind,engineering,operations,passenger_services,security,distance,flavor
-Engineering,Push the boilers,speed,-2,0,0,0,2,Run the engine past its limits
-Engineering,Run hot through the pass,speed,-1,0,0,0,1,
-Engineering,Overclock the engine,speed,-1,0,-1,0,2,Loud and hot; passengers complain
-Engineering,Full overhaul,repair,3,0,0,0,-1,Half a day in the shed
-Engineering,Patch the couplings,repair,2,-1,0,0,0,Pulls Operations staff off the schedule
-Engineering,Thaw the switches,routine,1,1,0,0,0,
-Engineering,Reroute heat to the cabins,support,-1,0,2,0,0,
-Engineering,Fit the snow plough,speed,1,0,0,-1,1,Security crew helps bolt it on
-Engineering,Strip spare parts,repair,2,0,0,-1,0,Borrowed from the security car
-Engineering,Routine maintenance,routine,1,0,0,0,0,
-Operations,Express schedule,speed,0,0,-2,0,2,No stops; passengers furious
-Operations,Skip the station stop,speed,0,-1,0,0,1,
-Operations,Run the red signal,speed,0,0,0,-2,2,
-Operations,Reroute via the valley,speed,0,0,-1,0,1,
-Operations,Hold for track clearance,repair,1,1,0,0,-1,
-Operations,Rebuild the timetable,repair,0,2,0,0,-1,
-Operations,Coordinate with the depot,repair,0,1,0,1,-1,
-Operations,Requisition supplies,repair,-1,2,0,0,0,
-Operations,Lend a hand to the stewards,support,0,-1,2,0,0,
-Operations,Routine dispatch,routine,0,1,0,0,0,
-Passenger Services,Comp the dining car,repair,0,-1,2,0,0,Eats into the budget
-Passenger Services,Calm the carriages,repair,0,0,1,1,-1,
-Passenger Services,Extra stop for supplies,repair,0,0,3,0,-1,
-Passenger Services,Ration the heating,support,2,0,-2,0,0,
-Passenger Services,Seal the rear carriages,speed,0,0,-2,0,1,Less weight; cramped passengers
-Passenger Services,Hot meals for the crew,support,0,1,-1,1,0,
-Passenger Services,Volunteer work crews,support,1,0,-1,0,0,Passengers help shovel
-Passenger Services,Open the lounge,repair,0,0,2,-1,0,
-Passenger Services,Hand out blankets,repair,-1,0,2,0,0,
-Passenger Services,Reassuring announcement,routine,0,0,1,0,0,
-Security,Lock down the carriages,repair,0,0,-2,2,0,
-Security,Patrol the roof,repair,1,0,0,1,-1,
-Security,Clear the line ahead,speed,0,0,0,-1,1,
-Security,Guard the cargo,repair,0,-1,0,2,0,
-Security,Wave through the inspection,speed,0,0,0,-2,1,
-Security,Crowd control,support,0,0,2,-1,0,
-Security,Search the luggage,repair,0,0,0,3,-1,
-Security,Guard the engine room,support,2,0,0,-1,0,
-Security,Help with the timetable,support,0,2,0,-1,0,
-Security,Routine rounds,routine,0,0,0,1,0,
+department,card,kind,engineering,operations,passenger_services,security,flavor
+Engineering,Routine maintenance,routine,1,0,0,0,
+Engineering,Check the gauges,routine,1,0,0,0,
+Engineering,Stoke the boilers,build,2,0,0,0,
+Engineering,Patch the couplings,build,2,0,0,0,
+Engineering,Thaw the switches,build,1,1,0,0,Operations gets its points back too
+Engineering,Full overhaul,push,3,0,-1,0,Half a day in the shed; passengers wait in the cold
+Engineering,Strip spare parts,push,3,0,0,-1,Borrowed from the security car
+Engineering,Run hot through the pass,push,3,-1,0,0,Throws the timetable out
+Engineering,Reroute heat to the cabins,support,-1,0,2,0,
+Engineering,Fix the carriage locks,support,-1,0,0,2,
+Operations,Routine dispatch,routine,0,1,0,0,
+Operations,Check the timetable,routine,0,1,0,0,
+Operations,Rebuild the timetable,build,0,2,0,0,
+Operations,Clear the signals,build,0,2,0,0,
+Operations,Coordinate with the depot,build,0,1,0,1,
+Operations,Requisition supplies,push,-1,3,0,0,Takes the engine crew's spares
+Operations,Commandeer the radio,push,0,3,0,-1,Security loses its line out
+Operations,Cancel the dining service,push,0,3,-1,0,Staff move to the signal box
+Operations,Lend a hand to the stewards,support,0,-1,2,0,
+Operations,Send fuel to the engine,support,2,-1,0,0,
+Passenger Services,Reassuring announcement,routine,0,0,1,0,
+Passenger Services,Hand out blankets,routine,0,0,1,0,
+Passenger Services,Comp the dining car,build,0,0,2,0,
+Passenger Services,Open the lounge,build,0,0,2,0,
+Passenger Services,Calm the carriages,build,0,0,1,1,
+Passenger Services,Raid the supply car,push,0,-1,3,0,
+Passenger Services,Move everyone forward,push,-1,0,3,0,More weight on the engine
+Passenger Services,Free drinks in the bar,push,0,0,3,-1,Rowdy carriages for security
+Passenger Services,Volunteer work crews,support,2,0,-1,0,Passengers help shovel
+Passenger Services,Hot meals for the crew,support,0,2,-1,0,
+Security,Routine rounds,routine,0,0,0,1,
+Security,Check tickets,routine,0,0,0,1,
+Security,Patrol the roof,build,0,0,0,2,
+Security,Guard the cargo,build,0,0,0,2,
+Security,Crowd control,build,0,0,1,1,
+Security,Search the luggage,push,0,0,-1,3,Passengers resent it
+Security,Seal the signal box,push,0,-1,0,3,
+Security,Commandeer the tools,push,-1,0,0,3,
+Security,Guard the engine room,support,2,0,0,-1,
+Security,Help with the timetable,support,0,2,0,-1,

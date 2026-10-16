@@ -3,8 +3,8 @@
 namespace App\Game\Engine;
 
 /**
- * The whole state of one game in progress. Plain data: the Engine changes
- * it, the lobby stores it as JSON, the views read it.
+ * The whole state of one Departure game in progress. Plain data: the Engine
+ * changes it, the lobby stores it as JSON, the views read it.
  */
 final class Game
 {
@@ -16,11 +16,18 @@ final class Game
 
     public const REVEAL = 'reveal';
 
+    /** The cord window on a green signal. */
+    public const DUSK = 'dusk';
+
+    /** The departure check's result: ran, held by the cord, or red. */
+    public const DEPARTURE = 'departure';
+
     public const NIGHT = 'night';
 
+    /** A detention vote during the night. */
     public const VOTE = 'vote';
 
-    public const INQUIRY = 'inquiry';
+    public const ARRIVAL = 'arrival';
 
     public const FINISHED = 'finished';
 
@@ -41,21 +48,33 @@ final class Game
     /** @var array<string, int> */
     public array $scoresAtDawn = [];
 
-    public int $distance = 0;
+    /** Legs run so far; the train is at station $leg. */
+    public int $leg = 0;
 
-    public int $baseToday = 0;
+    /** Every department must be at or above this for a green signal. */
+    public int $line = 0;
 
-    public int $slowDays = 0;
+    /** Tailwind: the next run costs nothing. */
+    public bool $freeRun = false;
 
-    /** Brake pulls the train has left this game; -1 means no cap. */
-    public int $trainBrakesLeft = -1;
+    /** Cord pulls the train has left this game. */
+    public int $cordLeft = 0;
 
-    public int $brakeRest = 0;
+    /**
+     * Every cord pull: the day, who pulled (secret until the end) and the
+     * public clue.
+     *
+     * @var list<array{day: int, by: string, clue: list<string>}>
+     */
+    public array $pulls = [];
 
-    /** Whether the brake can be pulled tonight. */
-    public bool $brakeOpen = false;
-
-    public bool $brakeUsedTonight = false;
+    /**
+     * Today's departure check: the signal, whether the cord window is open,
+     * who pulled in it (secret), and the outcome once settled.
+     *
+     * @var array<string, mixed>|null
+     */
+    public ?array $dusk = null;
 
     /** @var array<string, Deck> */
     public array $decks = [];
@@ -68,20 +87,24 @@ final class Game
     /** @var list<string> */
     public array $weatherToday = [];
 
-    public int $weatherDistance = 0;
-
-    public ?string $forecast = null;
+    /**
+     * Players who have nominated tonight.
+     *
+     * @var list<string>
+     */
+    public array $nominatedTonight = [];
 
     /**
-     * The brake vote in progress: puller, nominee, and when night resumes.
+     * The detention vote in progress: nominator, nominee, and how much
+     * night was left when it started.
      *
-     * @var array{puller: string, nominee: string, nightLeft: int}|null
+     * @var array{nominator: string, nominee: string, nightLeft: int}|null
      */
     public ?array $vote = null;
 
     /**
-     * One record per day: weather, every hand and pick, the result and the
-     * night's brake. Hands are secret until the game ends.
+     * One record per day: weather, every hand and pick, the departure check
+     * and the night's votes. Hands and pullers are secret until the end.
      *
      * @var list<array<string, mixed>>
      */
@@ -114,6 +137,11 @@ final class Game
         return $this->rules[$key] ?? throw new \InvalidArgumentException("Unknown rule [{$key}].");
     }
 
+    public function on(string $key): bool
+    {
+        return ($this->rules[$key] ?? 0) !== 0;
+    }
+
     public function player(string $id): ?Player
     {
         foreach ($this->players as $player) {
@@ -126,11 +154,11 @@ final class Game
     }
 
     /**
-     * The escort watching a restricted player, if any.
+     * The escort watching a detained player, if any.
      */
     public function escortFor(Player $player): ?Player
     {
-        if (! $player->isRestricted()) {
+        if (! $player->isDetained()) {
             return null;
         }
 
@@ -169,6 +197,30 @@ final class Game
         return count(array_filter($this->departments, fn (string $d) => $this->inCrisis($d)));
     }
 
+    /**
+     * Every department at or above the line.
+     */
+    public function green(): bool
+    {
+        return array_all($this->departments, fn (string $d) => ($this->scores[$d] ?? 0) >= $this->line);
+    }
+
+    /**
+     * The line once the train has run $leg legs.
+     */
+    public function lineFor(int $leg): int
+    {
+        $every = $this->rule('line_rise_every');
+        $rise = $every > 0 ? $this->rule('line_rise') * intdiv($leg, $every) : 0;
+
+        return min($this->rule('score_max'), $this->rule('line_start') + $rise);
+    }
+
+    public function anyoneDetained(): bool
+    {
+        return array_any($this->players, fn (Player $p) => $p->isDetained());
+    }
+
     public function isOver(): bool
     {
         return $this->phase === self::FINISHED;
@@ -193,19 +245,17 @@ final class Game
             'departments' => $this->departments,
             'scores' => $this->scores,
             'scoresAtDawn' => $this->scoresAtDawn,
-            'distance' => $this->distance,
-            'baseToday' => $this->baseToday,
-            'slowDays' => $this->slowDays,
-            'trainBrakesLeft' => $this->trainBrakesLeft,
-            'brakeRest' => $this->brakeRest,
-            'brakeOpen' => $this->brakeOpen,
-            'brakeUsedTonight' => $this->brakeUsedTonight,
+            'leg' => $this->leg,
+            'line' => $this->line,
+            'freeRun' => $this->freeRun,
+            'cordLeft' => $this->cordLeft,
+            'pulls' => $this->pulls,
+            'dusk' => $this->dusk,
             'decks' => array_map(fn (Deck $d) => $d->toArray(), $this->decks),
             'weatherDeck' => $this->weatherDeck->toArray(),
             'players' => array_map(fn (Player $p) => $p->toArray(), $this->players),
             'weatherToday' => $this->weatherToday,
-            'weatherDistance' => $this->weatherDistance,
-            'forecast' => $this->forecast,
+            'nominatedTonight' => $this->nominatedTonight,
             'vote' => $this->vote,
             'history' => $this->history,
             'log' => $this->log,
@@ -227,13 +277,17 @@ final class Game
         $game->day = $r->int('day');
         $game->scores = $r->intMap('scores');
         $game->scoresAtDawn = $r->intMap('scoresAtDawn');
-        $game->distance = $r->int('distance');
-        $game->baseToday = $r->int('baseToday');
-        $game->slowDays = $r->int('slowDays');
-        $game->trainBrakesLeft = $r->int('trainBrakesLeft', -1);
-        $game->brakeRest = $r->int('brakeRest');
-        $game->brakeOpen = $r->bool('brakeOpen');
-        $game->brakeUsedTonight = $r->bool('brakeUsedTonight');
+        $game->leg = $r->int('leg');
+        $game->line = $r->int('line');
+        $game->freeRun = $r->bool('freeRun');
+        $game->cordLeft = $r->int('cordLeft');
+        $game->pulls = array_map(fn (array $pull) => [
+            'day' => (new Reader($pull))->int('day'),
+            'by' => (new Reader($pull))->string('by'),
+            'clue' => (new Reader($pull))->strings('clue'),
+        ], $r->maps('pulls'));
+        $dusk = $r->map('dusk');
+        $game->dusk = $dusk === [] ? null : $dusk;
         foreach ($r->map('decks') as $dept => $deck) {
             $d = new Reader(is_array($deck) ? $deck : []);
             $game->decks[$dept] = new Deck($d->strings('pile'), $d->strings('discard'));
@@ -242,11 +296,10 @@ final class Game
         $game->weatherDeck = new Deck($w->strings('pile'), $w->strings('discard'));
         $game->players = array_map(Player::fromArray(...), $r->maps('players'));
         $game->weatherToday = $r->strings('weatherToday');
-        $game->weatherDistance = $r->int('weatherDistance');
-        $game->forecast = $r->nullableString('forecast');
+        $game->nominatedTonight = $r->strings('nominatedTonight');
         $vote = $r->reader('vote');
         $game->vote = $r->has('vote') ? [
-            'puller' => $vote->string('puller'),
+            'nominator' => $vote->string('nominator'),
             'nominee' => $vote->string('nominee'),
             'nightLeft' => $vote->int('nightLeft'),
         ] : null;
