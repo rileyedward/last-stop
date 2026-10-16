@@ -1,6 +1,8 @@
 <?php
 
+use App\Lobby\Identity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /*
@@ -44,7 +46,82 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/*
+ * Fake players for feature tests: each has its own token cookie, so the
+ * server sees separate browsers.
+ */
+final class FakePlayer
 {
-    // ..
+    public string $token;
+
+    public string $id;
+
+    public function __construct(public string $name)
+    {
+        $this->token = Identity::newToken();
+        $this->id = Identity::idFor($this->token);
+    }
+}
+
+function browser(FakePlayer $player): TestCase
+{
+    /** @var TestCase $test */
+    $test = test();
+    $test->flushHeaders();
+
+    return $test->withCookies([Identity::TOKEN_COOKIE => $player->token, Identity::NAME_COOKIE => $player->name]);
+}
+
+/** The board as this player sees it. */
+function boardOf(FakePlayer $player, string $code): array
+{
+    $response = browser($player)->get("/board/{$code}");
+    $response->assertOk();
+
+    return $response->viewData('page')['props']['state'];
+}
+
+function send(FakePlayer $player, string $url, array $data = []): TestResponse
+{
+    return browser($player)->from('/')->post($url, $data);
+}
+
+/** Post a move and fail loudly if the server refused it. */
+function move(FakePlayer $player, string $code, array $data): void
+{
+    $response = send($player, "/board/{$code}/act", $data);
+    $response->assertRedirect();
+    $response->assertSessionHasNoErrors();
+}
+
+/**
+ * Seat $n players in a new lobby and ready them. Returns [code, players].
+ *
+ * @return array{0: string, 1: list<FakePlayer>}
+ */
+function seatPlayers(int $n): array
+{
+    $players = [];
+    foreach (['Ana', 'Ben', 'Cass', 'Dev', 'Eli', 'Fran', 'Gus', 'Hal', 'Ivy', 'Jo'] as $i => $name) {
+        if ($i < $n) {
+            $players[] = new FakePlayer($name);
+        }
+    }
+
+    $created = send($players[0], '/lobbies');
+    $code = substr((string) $created->headers->get('Location'), -4);
+    expect($code)->toMatch('/^[A-HJ-NP-Z2-9]{4}$/');
+
+    foreach (array_slice($players, 1) as $player) {
+        send($player, "/board/{$code}/join")->assertRedirect("/board/{$code}");
+    }
+
+    return [$code, $players];
+}
+
+function readyAll(string $code, array $players): void
+{
+    foreach ($players as $player) {
+        send($player, "/board/{$code}/ready", ['ready' => true])->assertSessionHasNoErrors();
+    }
 }

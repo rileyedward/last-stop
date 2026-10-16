@@ -4,7 +4,7 @@ import type { BoardState } from '@/game/types';
 import { useClock } from '@/game/useClock';
 import DeptRow from '../DeptRow.vue';
 import Flaps from '../Flaps.vue';
-import Rail from '../Rail.vue';
+import StationStrip from '../StationStrip.vue';
 
 const props = defineProps<{ state: BoardState; refresh: () => void }>();
 const lobby = computed(() => props.state.lobby);
@@ -69,24 +69,17 @@ const crisis = computed(
                 >
             </div>
             <div class="flex flex-col gap-[6px]">
-                <Rail :distance="game.distance" :route="game.route" />
-                <div
-                    class="mono flex justify-between text-[11px] text-[#93a2ba]"
-                >
-                    <span class="text-[#8fd3f0]"
-                        >{{ game.distance }} OF {{ game.route }}</span
-                    ><span>LAST STOP</span>
-                </div>
+                <StationStrip :stations="game.stations" :leg="game.leg" names />
             </div>
             <DeptRow
                 :departments="game.departments"
                 :crisis-at="game.crisisAt"
+                :max="game.scoreMax"
+                :line="game.line"
             />
             <div v-if="crisis.length" class="text-[13px] text-[#ff8e92]">
                 {{ crisis.map((d) => d.name).join(' and ') }}
-                {{ crisis.length === 1 ? 'is' : 'are' }} in crisis.{{
-                    crisis.length === 1 ? ' One more and the traitor wins.' : ''
-                }}
+                {{ crisis.length === 1 ? 'is' : 'are' }} in crisis.
             </div>
         </div>
 

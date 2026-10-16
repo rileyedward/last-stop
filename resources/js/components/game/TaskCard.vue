@@ -28,9 +28,7 @@ const props = withDefaults(
 );
 
 const meta = computed(() => dept(props.card.department));
-const fx = computed(() =>
-    effectList(props.card.effects, props.card.distance, props.only),
-);
+const fx = computed(() => effectList(props.card.effects, props.only));
 </script>
 
 <template>

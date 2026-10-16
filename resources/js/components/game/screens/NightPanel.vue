@@ -4,7 +4,6 @@ import { dept } from '@/game/departments';
 import type { GameView } from '@/game/types';
 import Avatar from '../Avatar.vue';
 import Sheet from '../Sheet.vue';
-import WeatherCard from '../WeatherCard.vue';
 
 const props = defineProps<{ game: GameView }>();
 const emit = defineEmits<{
@@ -18,66 +17,46 @@ const name = (id: string) =>
 const nominating = ref(false);
 const chosen = ref<string | null>(null);
 
-const tonight = computed(() =>
-    props.game.lastBrake && props.game.lastBrake.day === props.game.day
-        ? props.game.lastBrake
-        : null,
-);
+const tonight = computed(() => props.game.lastVote);
 const candidates = computed(() =>
     props.game.players.filter((p) => !p.isMe && p.nominable),
 );
 const readyCount = computed(
     () => props.game.players.filter((p) => p.ready).length,
 );
+const detained = computed(() =>
+    props.game.players.filter((p) => p.detained > 0),
+);
+const lastClue = computed(
+    () => props.game.pulls[props.game.pulls.length - 1] ?? null,
+);
 
-const brakeLine = computed(() => {
-    const b = props.game.brake;
-    if (props.game.day < b.fromNight) {
-        return `The brake unlocks on night ${b.fromNight}.`;
-    }
-    if (b.trainLeft === 0) {
-        return 'The train has used all its brake pulls.';
-    }
-    if (b.used) {
-        return 'The brake has been pulled tonight. One pull a night.';
-    }
-    if (!b.open) {
-        return 'The brake is resting tonight.';
+const nominateLine = computed(() => {
+    if (!props.game.nominationsOpen) {
+        return 'Someone is already detained. Only one player at a time.';
     }
     if (!me.value) {
-        return 'Anyone unrestricted can pull it before the timer ends.';
+        return 'Anyone who is free can nominate a player to detain.';
     }
-    if (me.value.restricted) {
-        return "You're restricted, so you can't pull the brake.";
+    if (me.value.detained) {
+        return "You're detained, so you can't nominate.";
     }
     if (me.value.escorting) {
-        return "You're escorting someone, so you can't pull the brake.";
+        return "You're escorting someone, so you can't nominate.";
     }
-    if (me.value.brakesLeft <= 0) {
-        return "You've used your pulls.";
+    if (me.value.nominatedTonight) {
+        return "You've nominated once tonight. Someone else can try.";
     }
     if (candidates.value.length === 0) {
         return 'Nobody can be nominated tonight.';
     }
 
-    return 'Name a suspect. Tomorrow the train loses its base speed, pass or fail.';
+    return `Name a suspect. If the vote carries they're detained for ${props.game.detainDays} days and you escort them.`;
 });
-const canPull = computed(
-    () =>
-        props.game.brake.open &&
-        !props.game.brake.used &&
-        !!me.value?.canPull &&
-        candidates.value.length > 0,
-);
-const trainLeft = computed(() =>
-    props.game.brake.trainLeft < 0
-        ? ''
-        : ` · TRAIN: ${props.game.brake.trainLeft} LEFT`,
-);
 
-function pull(): void {
+function nominate(): void {
     if (chosen.value) {
-        emit('act', 'brake', { nominee: chosen.value });
+        emit('act', 'nominate', { nominee: chosen.value });
         nominating.value = false;
         chosen.value = null;
     }
@@ -97,26 +76,6 @@ function pull(): void {
         </div>
 
         <div
-            v-if="me?.forecast"
-            class="flex flex-col gap-2 rounded-xl border border-[#5a2228] bg-[#1a0b0e] p-[14px]"
-        >
-            <div class="label text-[#f09a9d]">
-                Your forecast · only you see this
-            </div>
-            <div class="text-[14px] text-[#f6e3e4]">
-                Tomorrow's first weather card:
-            </div>
-            <WeatherCard
-                :card="me.forecast"
-                row
-                :only="[
-                    ...game.departments.map((d) => d.key as string),
-                    'distance',
-                ]"
-            />
-        </div>
-
-        <div
             v-if="tonight"
             class="flex flex-col gap-[6px] rounded-[14px] p-4"
             :style="
@@ -127,23 +86,18 @@ function pull(): void {
         >
             <div class="disp text-[28px] leading-none font-black">
                 {{ tonight.yes }} to {{ tonight.no }}:
-                {{
-                    tonight.passed
-                        ? 'carried'
-                        : tonight.yes === tonight.no
-                          ? 'tie fails'
-                          : 'failed'
-                }}
+                {{ tonight.passed ? 'detained' : 'failed' }}
             </div>
             <div class="text-[14px] leading-[1.4]">
                 <template v-if="tonight.passed">
-                    {{ name(tonight.puller) }} escorts
+                    {{ name(tonight.nominator) }} escorts
                     {{ name(tonight.nominee) }} for the next
-                    {{ game.restrictDays }} days. Tomorrow's base speed is 0.
+                    {{ game.detainDays }} days. While detained they can't pull
+                    the cord.
                 </template>
                 <template v-else
-                    >{{ name(tonight.nominee) }} stays free. The brake was still
-                    pulled, so tomorrow's base speed is 0 anyway.</template
+                    >{{ name(tonight.nominee) }} stays free. It needed a strict
+                    majority.</template
                 >
             </div>
             <div class="flex flex-wrap gap-[6px] pt-1">
@@ -163,56 +117,58 @@ function pull(): void {
         </div>
 
         <div
-            class="flex items-stretch gap-4 rounded-2xl border border-[#5a2228] bg-[#120a0d] p-4"
+            v-if="detained.length && !tonight"
+            class="panel flex flex-col gap-2 p-[14px]"
         >
+            <div class="label text-[#ff8e92]">Detained</div>
+            <div
+                v-for="p in detained"
+                :key="p.id"
+                class="flex items-center gap-3 text-[14px]"
+            >
+                <Avatar :name="p.name" :size="26" />
+                <span class="flex-1"
+                    ><b>{{ p.isMe ? 'You' : p.name }}</b> ·
+                    {{ p.detained }} more
+                    {{ p.detained === 1 ? 'day' : 'days' }}</span
+                >
+                <span v-if="p.escortedBy" class="text-[12px] text-[#f4b740]"
+                    >escort {{ name(p.escortedBy) }}</span
+                >
+            </div>
+        </div>
+
+        <div
+            v-if="lastClue && lastClue.clue.length"
+            class="flex flex-col gap-2 rounded-xl border border-[#5a2228] bg-[#1a0f13] p-[14px]"
+        >
+            <div class="label text-[#ff8e92]">
+                Latest cord clue · day {{ lastClue.day }}
+            </div>
+            <div class="text-[14px] text-[#f6e3e4]">
+                One of {{ lastClue.clue.map(name).join(', ') }} pulled it.
+            </div>
+        </div>
+
+        <div
+            class="flex flex-col gap-3 rounded-2xl border border-[#5a2228] bg-[#120a0d] p-4"
+        >
+            <div
+                class="disp text-[28px] leading-[.9] font-black text-[#ff6b70]"
+            >
+                Detain someone
+            </div>
+            <div class="text-[14px] leading-[1.35] text-[#f6e3e4]">
+                {{ nominateLine }}
+            </div>
             <button
+                v-if="me?.canNominate && candidates.length"
                 type="button"
-                aria-label="Pull the emergency brake"
-                class="flex w-[84px] flex-none flex-col items-center border-none bg-transparent p-0"
-                :class="
-                    canPull ? 'cursor-pointer' : 'cursor-default opacity-50'
-                "
-                :disabled="!canPull"
+                class="btn btn-danger"
                 @click="nominating = true"
             >
-                <div
-                    class="relative flex h-[150px] w-[84px] justify-center rounded-[14px] border-2 border-[#3a1d22] bg-[#1c1216]"
-                >
-                    <div
-                        class="absolute top-[14px] bottom-[14px] w-3 rounded-md bg-[#070c16]"
-                    />
-                    <div
-                        class="absolute top-[18px] h-14 w-[6px] rounded-[3px] bg-[#8a96a8]"
-                    />
-                    <div
-                        class="hazard absolute top-3 h-[26px] w-[64px] rounded-lg border-2 border-[#ff6b70]"
-                    />
-                    <div
-                        class="mono absolute bottom-[10px] text-[10px] tracking-[.14em] text-[#f09a9d]"
-                    >
-                        PULL
-                    </div>
-                </div>
+                Nominate a player
             </button>
-            <div class="flex flex-1 flex-col gap-[10px]">
-                <div
-                    class="disp text-[28px] leading-[.9] font-black text-[#ff6b70]"
-                >
-                    Emergency brake
-                </div>
-                <div
-                    class="flex flex-col gap-[6px] text-[14px] leading-[1.35] text-[#f6e3e4]"
-                >
-                    <div>{{ brakeLine }}</div>
-                    <div v-if="canPull">
-                        If the vote passes, you escort them for
-                        {{ game.restrictDays }} days.
-                    </div>
-                </div>
-                <div v-if="me" class="mono text-[12px] text-[#f09a9d]">
-                    YOUR PULLS LEFT: {{ me.brakesLeft }}{{ trainLeft }}
-                </div>
-            </div>
         </div>
 
         <button
@@ -243,8 +199,8 @@ function pull(): void {
             @close="nominating = false"
         >
             <div class="text-[14px] leading-[1.4] text-[#e3c6c8]">
-                Everyone except them votes, all at once. Strict majority
-                restricts them; ties fail.
+                Everyone except them votes, all at once, and your vote counts as
+                yes. A strict majority detains them; a tie fails.
             </div>
             <div class="flex flex-col gap-2">
                 <button
@@ -272,20 +228,16 @@ function pull(): void {
                 </button>
             </div>
             <div class="text-[12px] text-[#93a2ba]">
-                Restricted players, escorts and anyone just released can't be
+                Detained players, escorts and anyone just released can't be
                 named tonight.
             </div>
             <button
                 type="button"
                 class="btn btn-danger"
                 :disabled="!chosen"
-                @click="pull"
+                @click="nominate"
             >
-                {{
-                    chosen
-                        ? `Pull the brake on ${name(chosen)}`
-                        : 'Pick a suspect'
-                }}
+                {{ chosen ? `Nominate ${name(chosen)}` : 'Pick a suspect' }}
             </button>
         </Sheet>
     </div>

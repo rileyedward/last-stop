@@ -32,6 +32,11 @@ function badge(p: GameView['players'][number]): {
             } as const
         )[p.status];
     }
+    if (props.game.phase === 'arrival') {
+        return p.accused
+            ? { text: 'VOTED', color: '#F4B740' }
+            : { text: '', color: '#93A2BA' };
+    }
     if (props.game.phase === 'vote') {
         return p.voted
             ? { text: 'VOTED', color: '#F4B740' }
@@ -42,12 +47,6 @@ function badge(p: GameView['players'][number]): {
         ? { text: 'READY', color: '#F4B740' }
         : { text: '', color: '#93A2BA' };
 }
-
-const trainLeft = computed(() =>
-    props.game.brake.trainLeft < 0
-        ? 'no cap'
-        : `${props.game.brake.trainLeft} left`,
-);
 </script>
 
 <template>
@@ -87,12 +86,9 @@ const trainLeft = computed(() =>
                         :style="{ color: dept(p.department).color }"
                         >{{ dept(p.department).short.toUpperCase() }}</span
                     >
-                    <span
-                        v-if="p.restricted"
-                        class="text-[12px] text-[#ff8e92]"
-                    >
-                        Restricted · {{ p.restricted }}
-                        {{ p.restricted === 1 ? 'day' : 'days' }} left{{
+                    <span v-if="p.detained" class="text-[12px] text-[#ff8e92]">
+                        Detained · {{ p.detained }}
+                        {{ p.detained === 1 ? 'day' : 'days' }} left{{
                             p.escortedBy
                                 ? ` · escort ${name(p.escortedBy)}`
                                 : ''
@@ -116,17 +112,18 @@ const trainLeft = computed(() =>
                         >{{ badge(p).text }}</span
                     >
                     <span
+                        v-if="p.overridesLeft"
                         class="mono text-[10px] text-[#93a2ba]"
-                        :title="`${p.brakesLeft} brake pulls left`"
-                        >BRAKE ×{{ p.brakesLeft }}</span
+                        :title="`${p.overridesLeft} veto overrides left`"
+                        >OVERRIDE ×{{ p.overridesLeft }}</span
                     >
                 </div>
             </div>
         </div>
         <div class="text-[13px] leading-[1.45] text-[#93a2ba]">
-            The train has {{ trainLeft }} on the emergency brake. It unlocks on
-            night {{ game.brake.fromNight }}. Players in one department share a
-            deck, so they can never hold the same card on the same day.
+            The train has {{ game.cordLeft }} of {{ game.cordPulls }} cord pulls
+            left. Players in one department share a deck, so they can never hold
+            the same card on the same day.
         </div>
     </div>
 </template>

@@ -13,10 +13,9 @@ const emit = defineEmits<{
 
 const today = computed(() => props.game.today!);
 const picks = computed(() => today.value.picks.filter((p) => p.card !== null));
-const inPlay = computed(() => [
-    ...props.game.departments.map((d) => d.key as string),
-    'distance',
-]);
+const inPlay = computed(() =>
+    props.game.departments.map((d) => d.key as string),
+);
 const name = (id: string) =>
     props.game.players.find((p) => p.id === id)?.name ?? '';
 const isMe = (id: string) =>
@@ -47,26 +46,25 @@ const current = computed(() =>
 );
 
 const tally = computed(() => {
-    const scores: Record<string, number> = {
-        ...today.value.scoresAfterWeather,
-    };
-    let dist = today.value.distanceBefore;
     if (done.value) {
-        return {
-            scores: today.value.scoresAfter,
-            dist: today.value.distanceAfter,
-        };
+        return { scores: today.value.scoresAfter };
     }
+    // Picks add up first and clamp once, as the engine does.
+    const totals: Record<string, number> = {};
     for (const pick of picks.value.slice(0, flipped.value)) {
         for (const [k, v] of Object.entries(pick.card!.effects)) {
-            if (k in scores) {
-                scores[k] = Math.max(0, Math.min(10, scores[k] + (v ?? 0)));
-            }
+            totals[k] = (totals[k] ?? 0) + (v ?? 0);
         }
-        dist += pick.card!.distance;
+    }
+    const scores: Record<string, number> = {};
+    for (const [k, v] of Object.entries(today.value.scoresAfterWeather)) {
+        scores[k] = Math.max(
+            0,
+            Math.min(props.game.scoreMax, v + (totals[k] ?? 0)),
+        );
     }
 
-    return { scores, dist };
+    return { scores };
 });
 
 const rows = computed(() =>
@@ -102,7 +100,9 @@ const me = computed(() => props.game.me);
 const readyCount = computed(
     () => props.game.players.filter((p) => p.ready).length,
 );
-const over = computed(() => props.game.winner !== null);
+const short = computed(() =>
+    props.game.departments.filter((d) => !d.atLine).map((d) => d.name),
+);
 </script>
 
 <template>
@@ -121,12 +121,8 @@ const over = computed(() => props.game.winner !== null);
             <div
                 class="mono flex flex-col items-center gap-[2px] text-[11px] font-semibold"
             >
-                <span class="text-[#8fd3f0]">DIST</span
-                ><span class="text-[16px] text-[#e8eef5]"
-                    >{{ Math.max(today.distanceBefore, tally.dist) }}/{{
-                        game.route
-                    }}</span
-                >
+                <span class="text-[#93a2ba]">LINE</span
+                ><span class="text-[16px] text-[#e8eef5]">{{ game.line }}</span>
             </div>
         </div>
 
@@ -165,17 +161,12 @@ const over = computed(() => props.game.winner !== null);
                         <span
                             v-for="f in effectList(
                                 current.card!.effects,
-                                current.card!.distance,
                                 inPlay,
                             )"
                             :key="f.key"
                             class="pfx"
                             :class="{ neg: f.value < 0 }"
-                            >{{
-                                f.key === 'distance'
-                                    ? `DIST ${signed(f.value)}`
-                                    : f.label
-                            }}</span
+                            >{{ f.label }}</span
                         >
                     </span>
                     <span
@@ -292,44 +283,17 @@ const over = computed(() => props.game.winner !== null);
                     >
                 </div>
                 <div class="h-px bg-[#24324a]" />
-                <div
-                    class="mono grid grid-cols-[44px_1fr_1fr_1.4fr] items-baseline text-[14px]"
-                >
-                    <span class="text-[#8fd3f0]">DIST</span>
-                    <span
-                        :class="
-                            today.weatherDistance < 0 ? 'dn' : 'text-[#5e6e88]'
-                        "
-                        >{{ signed(today.weatherDistance) }}</span
+                <div class="text-[13px] text-[#c5d0e0]">
+                    <template v-if="short.length === 0"
+                        >Every department is at the line ({{ game.line }}). The
+                        signal will be green at dusk.</template
                     >
-                    <span
-                        :class="
-                            today.cardDistance < 0
-                                ? 'dn'
-                                : today.cardDistance > 0
-                                  ? 'text-[#f4b740]'
-                                  : 'text-[#5e6e88]'
-                        "
-                        >{{ signed(today.cardDistance) }}</span
+                    <template v-else
+                        >{{ short.join(', ') }}
+                        {{ short.length === 1 ? 'is' : 'are' }} below the line
+                        ({{ game.line }}). The signal will be red at
+                        dusk.</template
                     >
-                    <span class="text-right"
-                        >{{ today.distanceBefore }} →
-                        <b class="text-[16px]">{{
-                            today.distanceAfter
-                        }}</b></span
-                    >
-                </div>
-                <div class="text-[12px] text-[#93a2ba]">
-                    Base speed {{ signed(today.base) }}. Distance today
-                    {{ signed(today.dayDistance)
-                    }}{{
-                        today.base +
-                            today.weatherDistance +
-                            today.cardDistance <
-                        0
-                            ? ' (never goes backwards)'
-                            : ''
-                    }}.
                 </div>
             </div>
 
@@ -359,19 +323,11 @@ const over = computed(() => props.game.winner !== null);
                         </div>
                         <div class="flex flex-wrap gap-1">
                             <span
-                                v-for="f in effectList(
-                                    p.card!.effects,
-                                    p.card!.distance,
-                                    inPlay,
-                                )"
+                                v-for="f in effectList(p.card!.effects, inPlay)"
                                 :key="f.key"
                                 class="chip"
                                 :class="{ dn: f.value < 0 }"
-                                >{{
-                                    f.key === 'distance'
-                                        ? `DIST ${signed(f.value)}`
-                                        : f.label
-                                }}</span
+                                >{{ f.label }}</span
                             >
                             <span
                                 v-if="p.card!.kind === 'routine'"
@@ -409,22 +365,14 @@ const over = computed(() => props.game.winner !== null);
             type="button"
             class="btn"
             :class="
-                me.ready
-                    ? 'btn-outline'
-                    : done
-                      ? over
-                          ? 'btn-primary'
-                          : 'btn-ghost'
-                      : 'btn-ghost'
+                me.ready ? 'btn-outline' : done ? 'btn-primary' : 'btn-ghost'
             "
             @click="emit('act', 'ready', { ready: !me.ready })"
         >
             {{
                 me.ready
                     ? `Waiting · ${readyCount} of ${game.players.length}`
-                    : over
-                      ? 'To the last stop'
-                      : 'Night falls'
+                    : 'To the departure check'
             }}
         </button>
     </div>

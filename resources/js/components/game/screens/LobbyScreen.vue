@@ -170,15 +170,15 @@ function leave(): void {
                     class="flex-1 rounded-lg bg-[#0b1220] px-[6px] py-2 text-center"
                 >
                     <div class="mono text-[20px] font-semibold">
-                        {{ lobby.setup.route }}
+                        {{ lobby.setup.rules.legs }}
                     </div>
-                    <div class="label mt-1 text-[9px]">Route</div>
+                    <div class="label mt-1 text-[9px]">Legs</div>
                 </div>
                 <div
                     class="flex-1 rounded-lg bg-[#0b1220] px-[6px] py-2 text-center"
                 >
                     <div class="mono text-[20px] font-semibold">
-                        {{ lobby.setup.days }}
+                        {{ lobby.setup.rules.days }}
                     </div>
                     <div class="label mt-1 text-[9px]">Days</div>
                 </div>
@@ -186,7 +186,7 @@ function leave(): void {
                     class="flex-1 rounded-lg bg-[#0b1220] px-[6px] py-2 text-center"
                 >
                     <div class="mono text-[20px] font-semibold text-[#8fd3f0]">
-                        {{ lobby.setup.weather }}
+                        {{ lobby.setup.rules.weather_per_day }}
                     </div>
                     <div class="label mt-1 text-[9px]">Weather</div>
                 </div>
@@ -194,11 +194,13 @@ function leave(): void {
                     class="flex-1 rounded-lg bg-[#0b1220] px-[6px] py-2 text-center"
                 >
                     <div class="mono text-[20px] font-semibold text-[#ff8e92]">
-                        {{ lobby.setup.traitors }}
+                        {{ lobby.setup.rules.traitors }}
                     </div>
                     <div class="label mt-1 text-[9px]">
                         {{
-                            lobby.setup.traitors === 1 ? 'Traitor' : 'Traitors'
+                            lobby.setup.rules.traitors === 1
+                                ? 'Traitor'
+                                : 'Traitors'
                         }}
                     </div>
                 </div>
@@ -365,6 +367,7 @@ function leave(): void {
             :lobby="lobby"
             @close="sheet = null"
             @preset="(p) => actions.lobby('preset', { preset: p })"
+            @custom="(values) => actions.settings(values)"
         />
         <WinsSheet
             :open="sheet === 'wins'"

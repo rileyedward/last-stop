@@ -10,15 +10,16 @@ import Flaps from '../Flaps.vue';
 import Icon from '../Icon.vue';
 import { ICONS } from '../icons';
 import LogSheet from '../LogSheet.vue';
-import Rail from '../Rail.vue';
 import Sheet from '../Sheet.vue';
+import StationStrip from '../StationStrip.vue';
 import Ticket from '../Ticket.vue';
+import ArrivalPanel from './ArrivalPanel.vue';
 import CrewPanel from './CrewPanel.vue';
+import DuskPanel from './DuskPanel.vue';
 import HandPanel from './HandPanel.vue';
-import InquiryPanel from './InquiryPanel.vue';
 import NightPanel from './NightPanel.vue';
 import RevealPanel from './RevealPanel.vue';
-import TrainPanel from './TrainPanel.vue';
+import SignalBoard from './SignalBoard.vue';
 import VotePanel from './VotePanel.vue';
 
 const props = defineProps<{ state: BoardState; refresh: () => void }>();
@@ -63,9 +64,16 @@ function act(
     actions.value.act(action, data);
 }
 
-const steps = ['dawn', 'day', 'reveal', 'night'] as const;
+const steps = ['dawn', 'day', 'dusk', 'night'] as const;
 const stepIndex = computed(() => {
-    const phase = game.value.phase === 'vote' ? 'night' : game.value.phase;
+    const phase =
+        (
+            {
+                reveal: 'day',
+                departure: 'dusk',
+                vote: 'night',
+            } as Record<string, string>
+        )[game.value.phase] ?? game.value.phase;
 
     return steps.indexOf(phase as (typeof steps)[number]);
 });
@@ -75,8 +83,11 @@ const timerColor = computed(
         ({
             dawn: '#8FD3F0',
             day: '#F4B740',
+            dusk: '#8EE6B8',
+            departure: '#8EE6B8',
             night: '#E8EEF5',
             vote: '#FF8E92',
+            arrival: '#F4B740',
         })[game.value.phase as string] ?? '#F4B740',
 );
 
@@ -109,7 +120,7 @@ const latestLine = computed(() => {
     return e.kind === 'weather' ? `${e.text} at dawn` : e.text;
 });
 const latestRed = computed(() =>
-    ['brake', 'vote', 'veto'].includes(latest.value?.kind ?? ''),
+    ['cord', 'nominate', 'vote', 'veto'].includes(latest.value?.kind ?? ''),
 );
 const latestDot = computed(() =>
     latestRed.value
@@ -151,7 +162,7 @@ function remove(id: string): void {
         <header
             class="sticky top-0 z-20 flex flex-none flex-col gap-3 border-b border-[#24324a] bg-[#0e1626] px-4 pt-[14px] pb-3"
             :style="
-                game.phase === 'night' || game.phase === 'vote'
+                ['night', 'vote', 'dusk', 'departure'].includes(game.phase)
                     ? 'background:#0A101C'
                     : ''
             "
@@ -182,9 +193,7 @@ function remove(id: string): void {
                     class="mono flex-1 text-[11px] tracking-[.14em] text-[#93a2ba]"
                 >
                     {{
-                        game.phase === 'boarding'
-                            ? 'BOARDING'
-                            : 'ARRIVAL INQUIRY'
+                        game.phase === 'boarding' ? 'BOARDING' : 'ARRIVAL VOTE'
                     }}
                 </div>
                 <div
@@ -204,15 +213,17 @@ function remove(id: string): void {
             </div>
             <div class="flex items-center gap-[10px]">
                 <div class="flex-1">
-                    <Rail :distance="game.distance" :route="game.route" />
+                    <StationStrip :stations="game.stations" :leg="game.leg" />
                 </div>
                 <div class="mono text-[12px] text-[#8fd3f0]">
-                    {{ game.distance }}/{{ game.route }}
+                    LINE {{ game.line }}
                 </div>
             </div>
             <DeptRow
                 :departments="game.departments"
                 :crisis-at="game.crisisAt"
+                :max="game.scoreMax"
+                :line="game.line"
                 :deltas="deltas"
                 :previews="
                     tab === 'hand' && game.phase === 'day' ? preview : {}
@@ -264,9 +275,10 @@ function remove(id: string): void {
                 @act="act"
             />
 
-            <InquiryPanel
-                v-else-if="game.phase === 'inquiry'"
+            <ArrivalPanel
+                v-else-if="game.phase === 'arrival'"
                 :game="game"
+                :clock="clock.label.value"
                 @act="act"
             />
 
@@ -282,8 +294,17 @@ function remove(id: string): void {
                     @act="act"
                     @log="sheet = 'log'"
                 />
+                <DuskPanel
+                    v-else-if="
+                        (game.phase === 'dusk' || game.phase === 'departure') &&
+                        game.dusk
+                    "
+                    :game="game"
+                    :clock="clock.label.value"
+                    @act="act"
+                />
                 <template v-else>
-                    <TrainPanel :game="game" />
+                    <SignalBoard :game="game" />
                     <button
                         v-if="game.phase === 'dawn'"
                         type="button"
@@ -346,11 +367,11 @@ function remove(id: string): void {
                         their hand here during the day.
                     </div>
                     <div
-                        v-if="me.restricted"
+                        v-if="me.detained"
                         class="notice-red px-[14px] py-3 text-[14px]"
                     >
-                        You're restricted for {{ me.restricted }} more
-                        {{ me.restricted === 1 ? 'day' : 'days' }}.
+                        You're detained for {{ me.detained }} more
+                        {{ me.detained === 1 ? 'day' : 'days' }}.
                         {{ me.escortedBy }} escorts you.
                     </div>
                     <button

@@ -9,9 +9,9 @@ export type CardData = {
     name: string;
     department: DeptKey | null;
     effects: Partial<Record<DeptKey, number>>;
-    distance: number;
     flavor: string;
-    kind: 'speed' | 'repair' | 'support' | 'routine' | 'weather';
+    kind: 'build' | 'push' | 'support' | 'routine' | 'weather';
+    special: string;
 };
 
 export type Phase =
@@ -19,12 +19,24 @@ export type Phase =
     | 'dawn'
     | 'day'
     | 'reveal'
+    | 'dusk'
+    | 'departure'
     | 'night'
     | 'vote'
-    | 'inquiry'
+    | 'arrival'
     | 'finished';
 
 export type PickState = 'none' | 'locked' | 'pending' | 'repick' | 'final';
+
+export type Cause =
+    | 'arrived'
+    | 'named'
+    | 'never_pulled'
+    | 'wrong_name'
+    | 'tie_vote'
+    | 'crisis'
+    | 'clock'
+    | 'ended';
 
 export type Department = {
     key: DeptKey;
@@ -33,6 +45,7 @@ export type Department = {
     score: number;
     atDawn: number;
     crisis: boolean;
+    atLine: boolean;
 };
 
 export type GamePlayer = {
@@ -41,17 +54,17 @@ export type GamePlayer = {
     department: DeptKey;
     ready: boolean;
     status: 'idle' | 'thinking' | 'picked' | 'escort' | 'vetoed';
-    restricted: number;
+    detained: number;
     escortOf: string | null;
     escortedBy: string | null;
     cooldown: number;
-    brakesLeft: number;
     overridesLeft: number;
     absent: boolean;
     nominable: boolean;
-    canPull: boolean;
+    canNominate: boolean;
     voted: boolean;
-    guessed: boolean;
+    accused: boolean;
+    everDetained: boolean;
     isMe: boolean;
     traitor: boolean | null;
 };
@@ -62,21 +75,27 @@ export type LogEntry = {
         | 'system'
         | 'day'
         | 'weather'
+        | 'tailwind'
         | 'pick'
         | 'override'
         | 'veto'
-        | 'result'
+        | 'signal'
+        | 'run'
+        | 'cord'
         | 'night'
-        | 'brake'
-        | 'vote';
+        | 'nominate'
+        | 'vote'
+        | 'arrival'
+        | 'result';
     text: string;
     who?: string;
     card?: string;
-    fx?: Partial<Record<DeptKey | 'distance', number>>;
+    fx?: Partial<Record<DeptKey, number>>;
     votes?: Record<string, boolean>;
     passed?: boolean;
     override?: boolean;
     auto?: boolean;
+    clue?: string[];
 };
 
 export type Escorting = {
@@ -87,9 +106,10 @@ export type Escorting = {
     pick: string | null;
     pickState: PickState;
     decision: 'allow' | 'veto' | null;
-    vetoed: string | null;
+    vetoed: string[];
+    vetoesLeft: number;
     overridesLeft: number;
-    dayOfRestriction: number;
+    dayOfDetention: number;
 };
 
 export type Me = {
@@ -101,33 +121,42 @@ export type Me = {
     hand: CardData[];
     pick: string | null;
     pickState: PickState;
-    vetoed: string | null;
+    vetoed: string[];
     autoPicked: boolean;
     overridesLeft: number;
-    brakesLeft: number;
     canPull: boolean;
+    cordPulled: boolean;
+    pulledByMe: boolean;
+    traitorsPulled: number | null;
+    myPulls: number;
     ready: boolean;
     vote: boolean | null;
-    guess: string | null;
-    restricted: number;
+    accuse: string | null;
+    detained: number;
     escortedBy: string | null;
     escorting: Escorting | null;
-    forecast: CardData | null;
-    forecastOn: boolean;
+    canNominate: boolean;
+    nominatedTonight: boolean;
+};
+
+export type Dusk = {
+    green: boolean;
+    window: boolean;
+    line: number;
+    scoresBefore: Record<string, number>;
+    outcome: 'ran' | 'pulled' | 'red' | null;
+    clue: string[];
+    free: boolean;
+    arrived: boolean;
+    legBefore: number;
 };
 
 export type DaySummary = {
     day: number;
-    base: number;
     weather: CardData[];
-    weatherDistance: number;
-    cardDistance: number;
-    dayDistance: number;
     scoresBefore: Record<string, number>;
     scoresAfterWeather: Record<string, number>;
     scoresAfter: Record<string, number>;
-    distanceBefore: number;
-    distanceAfter: number;
     picks: {
         player: string;
         card: CardData | null;
@@ -137,9 +166,8 @@ export type DaySummary = {
     }[];
 };
 
-export type BrakeResult = {
-    day: number;
-    puller: string;
+export type VoteResult = {
+    nominator: string;
     nominee: string;
     votes: Record<string, boolean>;
     yes: number;
@@ -149,32 +177,48 @@ export type BrakeResult = {
 
 export type Reveal = {
     traitors: string[];
-    guesses: { id: string; suspect: string | null; correct: boolean }[];
+    pulls: { day: number; by: string; clue: string[] }[];
+    accusations: { id: string; suspect: string | null }[];
     days: {
         day: number;
         weather: CardData[];
-        dayDistance: number;
         scoresAfter: Record<string, number>;
-        distanceAfter: number;
         picks: {
             player: string;
             hand: CardData[];
             pick: string | null;
-            vetoed: string | null;
+            vetoed: string[];
             override: boolean;
             auto: boolean;
+            escort: string | null;
         }[];
-        brake: {
-            puller: string;
+        dusk: {
+            green: boolean;
+            outcome: 'ran' | 'pulled' | 'red';
+            puller: string | null;
+            clue: string[];
+            free: boolean;
+            legAfter: number;
+            scoresAfter: Record<string, number>;
+        } | null;
+        nominations: {
+            nominator: string;
             nominee: string;
-            passed: boolean;
             yes: number;
             no: number;
+            passed: boolean;
+        }[];
+        arrival: {
+            tally: Record<string, number>;
+            top: string | null;
+            tie: boolean;
         } | null;
     }[];
-    brakes: number;
-    everRestricted: string[];
+    everDetained: string[];
+    leg: number;
 };
+
+export type Station = { name: string; line: number };
 
 export type GameView = {
     phase: Phase;
@@ -183,33 +227,36 @@ export type GameView = {
     remaining: number | null;
     day: number;
     days: number;
-    route: number;
-    distance: number;
-    baseToday: number;
-    slowDays: number;
-    weatherPerDay: number;
+    legs: number;
+    leg: number;
+    line: number;
+    stations: Station[];
+    freeRun: boolean;
+    cordLeft: number;
+    cordPulls: number;
+    clueSize: number;
+    scoreMax: number;
     crisisAt: number;
+    runCost: number;
     handSize: number;
     reducedHand: number;
-    restrictDays: number;
+    detainDays: number;
+    weatherPerDay: number;
     traitorCount: number;
+    accusation: boolean;
+    mustPull: boolean;
     departments: Department[];
     weather: CardData[];
-    weatherDistance: number;
     players: GamePlayer[];
-    brake: {
-        open: boolean;
-        used: boolean;
-        trainLeft: number;
-        perGame: number;
-        fromNight: number;
-    };
-    vote: { puller: string; nominee: string } | null;
-    lastBrake: BrakeResult | null;
+    dusk: Dusk | null;
+    pulls: { day: number; clue: string[] }[];
+    vote: { nominator: string; nominee: string } | null;
+    nominationsOpen: boolean;
+    lastVote: VoteResult | null;
     today: DaySummary | null;
     log: LogEntry[];
     winner: 'crew' | 'traitor' | null;
-    cause: 'arrived' | 'crisis' | 'clock' | 'ended' | null;
+    cause: Cause | null;
     me: Me | null;
     reveal: Reveal | null;
 };
@@ -222,6 +269,18 @@ export type Seat = {
     isMe: boolean;
 };
 
+export type SettingField = {
+    key: string;
+    label: string;
+    group: string;
+    min: number;
+    max: number;
+    kind: 'number' | 'switch' | 'seconds';
+    help: string;
+};
+
+export type Preset = 'easy' | 'standard' | 'hard' | 'custom';
+
 export type LobbyView = {
     code: string;
     version: number;
@@ -230,23 +289,16 @@ export type LobbyView = {
     isHost: boolean;
     seats: Seat[];
     platform: { id: string; name: string; isMe: boolean }[];
-    preset: 'easy' | 'standard' | 'hard';
+    preset: Preset;
+    custom: Record<string, number>;
     setup: {
         players: number;
-        route: number;
-        days: number;
-        weather: number;
-        traitors: number;
-        forecast: boolean;
-        brakeFrom: number;
-        brakesPerPlayer: number;
-        brakesPerGame: number;
-        restrictDays: number;
-        startScore: number;
-        crisisAt: number;
-        daySeconds: number;
-        nightSeconds: number;
+        departments: DeptKey[];
+        rules: Record<string, number>;
+        standard: Record<string, number>;
+        presetDays: Record<'easy' | 'standard' | 'hard', number>;
     };
+    fields: SettingField[];
     readyCount: number;
     canStart: boolean;
     minPlayers: number;

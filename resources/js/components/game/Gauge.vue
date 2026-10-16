@@ -8,16 +8,17 @@ const props = withDefaults(
         crisisAt: number;
         preview?: number;
         small?: boolean;
+        max?: number;
+        line?: number | null;
     }>(),
-    { preview: 0, small: false },
+    { preview: 0, small: false, max: 10, line: null },
 );
 
-const SCALE = 10;
 const pct = (n: number) =>
-    `${(Math.max(0, Math.min(SCALE, n)) / SCALE) * 100}%`;
+    `${(Math.max(0, Math.min(props.max, n)) / Math.max(1, props.max)) * 100}%`;
 const crisis = computed(() => pct(props.crisisAt));
 const after = computed(() =>
-    Math.max(0, Math.min(SCALE, props.score + props.preview)),
+    Math.max(0, Math.min(props.max, props.score + props.preview)),
 );
 </script>
 
@@ -40,6 +41,12 @@ const after = computed(() =>
             v-if="preview < 0"
             class="glost"
             :style="{ left: pct(after), width: pct(score - after) }"
+        />
+        <div
+            v-if="line !== null"
+            class="gline"
+            :class="{ met: after >= line }"
+            :style="{ left: pct(line) }"
         />
     </div>
 </template>

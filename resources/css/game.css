@@ -261,6 +261,57 @@
         background: var(--ls-lantern);
     }
 
+    .gline {
+        position: absolute;
+        top: -1px;
+        bottom: -1px;
+        width: 2px;
+        margin-left: -1px;
+        background: #e8eef5;
+        box-shadow: 0 0 0 1px #0b1220;
+    }
+    .gline.met {
+        background: #5cc8a0;
+    }
+
+    /* Signal lamps */
+    .lamp {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #2a1416;
+        border: 2px solid #3a2226;
+        flex: none;
+    }
+    .lamp.red {
+        background: #e5484d;
+        border-color: #ff8e92;
+        box-shadow: 0 0 14px rgba(229, 72, 77, 0.6);
+    }
+    .lamp.green {
+        background: #3fbf7f;
+        border-color: #8ee6b8;
+        box-shadow: 0 0 14px rgba(63, 191, 127, 0.6);
+    }
+    .lamp.off {
+        background: #16213a;
+        border-color: #24324a;
+        box-shadow: none;
+    }
+    .check-in {
+        animation: check-in 0.35s ease both;
+    }
+    @keyframes check-in {
+        from {
+            opacity: 0;
+            transform: translateX(-8px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
     /* Track */
     .sleepers {
         background-image: repeating-linear-gradient(

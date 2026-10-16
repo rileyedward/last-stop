@@ -18,7 +18,7 @@ const voters = computed(() =>
 const voted = computed(() => voters.value.filter((p) => p.voted).length);
 const mine = computed(() => me.value?.id ?? null);
 const isNominee = computed(() => mine.value === vote.value.nominee);
-const isPuller = computed(() => mine.value === vote.value.puller);
+const isNominator = computed(() => mine.value === vote.value.nominator);
 const nominee = computed(() =>
     props.game.players.find((p) => p.id === vote.value.nominee)!,
 );
@@ -31,13 +31,13 @@ const nominee = computed(() =>
             class="flex flex-col gap-2 border-b border-[#3a1d22] px-[18px] pt-5 pb-4"
         >
             <div class="label">
-                Night {{ game.day }} · Emergency brake pulled · {{ clock }}
+                Night {{ game.day }} · Detain vote · {{ clock }}
             </div>
             <h1 class="disp m-0 text-[44px] leading-[.88] font-black">
                 <span class="text-[#ff6b70]">{{
-                    isPuller ? 'You' : name(vote.puller)
+                    isNominator ? 'You' : name(vote.nominator)
                 }}</span>
-                {{ isPuller ? 'name' : 'names' }}
+                {{ isNominator ? 'nominate' : 'nominates' }}
                 <span class="text-[#ff6b70]">{{
                     isNominee ? 'you' : name(vote.nominee)
                 }}</span>
@@ -45,8 +45,8 @@ const nominee = computed(() =>
             <div class="text-[15px] leading-[1.4] text-[#e3c6c8]">
                 Everyone except
                 {{ isNominee ? 'you' : name(vote.nominee) }} votes, all at once.
-                A strict majority of yes restricts them for
-                {{ game.restrictDays }} days. Ties fail.
+                A strict majority of yes detains them for
+                {{ game.detainDays }} days. Ties fail; a missed vote is a no.
             </div>
         </div>
         <div class="flex flex-col gap-[10px] px-[18px] pt-4">
@@ -67,7 +67,7 @@ const nominee = computed(() =>
                 <Avatar :name="p.name" :me="p.isMe" />
                 <div class="flex-1 text-[15px] font-bold">
                     {{ p.isMe ? 'You' : p.name
-                    }}{{ p.id === vote.puller ? ' (pulled)' : '' }}
+                    }}{{ p.id === vote.nominator ? ' (nominated)' : '' }}
                 </div>
                 <div
                     class="mono rounded-md px-[9px] py-[6px] text-[13px] font-semibold tracking-[.1em]"
@@ -91,7 +91,7 @@ const nominee = computed(() =>
             </div>
 
             <div class="mt-3 flex flex-col gap-[10px]">
-                <template v-if="me && !isNominee && !isPuller">
+                <template v-if="me && !isNominee && !isNominator">
                     <div class="text-center text-[14px] text-[#e3c6c8]">
                         {{
                             me.vote === null
@@ -114,7 +114,7 @@ const nominee = computed(() =>
                             <span
                                 class="disp text-[34px] leading-none font-black"
                                 >NO</span
-                            ><span class="text-[13px]">Let the train run</span>
+                            ><span class="text-[13px]">Leave them free</span>
                         </button>
                         <button
                             type="button"
@@ -131,16 +131,16 @@ const nominee = computed(() =>
                                 class="disp text-[34px] leading-none font-black"
                                 >YES</span
                             ><span class="text-[13px] font-bold"
-                                >Restrict {{ nominee.name }}</span
+                                >Detain {{ nominee.name }}</span
                             >
                         </button>
                     </div>
                 </template>
                 <div
-                    v-else-if="isPuller"
+                    v-else-if="isNominator"
                     class="rounded-xl border border-[#5a2228] bg-[#1a0f13] p-[14px] text-[14px] text-[#f6e3e4]"
                 >
-                    You pulled the brake, so your vote counts as yes. Make your
+                    You nominated them, so your vote counts as yes. Make your
                     case on voice.
                 </div>
                 <div

@@ -9,8 +9,10 @@ withDefaults(
         crisisAt: number;
         deltas?: Record<string, number>;
         previews?: Record<string, number>;
+        max?: number;
+        line?: number | null;
     }>(),
-    { deltas: () => ({}), previews: () => ({}) },
+    { deltas: () => ({}), previews: () => ({}), max: 10, line: null },
 );
 </script>
 
@@ -57,6 +59,8 @@ withDefaults(
                 :color="dept(d.key).color"
                 :crisis-at="crisisAt"
                 :preview="previews[d.key] ?? 0"
+                :max="max"
+                :line="line"
                 small
             />
         </div>

@@ -61,10 +61,9 @@ export function signed(n: number): string {
     return n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0';
 }
 
-/** A card's effects as short labels, like "ENG −2" or "DIST +1". */
+/** A card's effects as short labels, like "ENG −2". */
 export function effectList(
     effects: Partial<Record<string, number>>,
-    distance = 0,
     only: string[] | null = null,
 ): { label: string; value: number; key: string }[] {
     const out: { label: string; value: number; key: string }[] = [];
@@ -73,13 +72,6 @@ export function effectList(
             continue;
         }
         out.push({ key, value, label: `${dept(key).code} ${signed(value)}` });
-    }
-    if (distance) {
-        out.push({
-            key: 'distance',
-            value: distance,
-            label: `DIST ${signed(distance)}`,
-        });
     }
 
     return out;

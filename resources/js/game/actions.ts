@@ -22,6 +22,16 @@ export function boardActions(code: string) {
             data: Record<string, string | boolean> = {},
             onDone?: () => void,
         ) => post(`${base}/act`, { action, ...data }, onDone),
+        settings: (values: Record<string, number>, onDone?: () => void) =>
+            router.post(
+                `${base}/settings`,
+                { values },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => onDone?.(),
+                },
+            ),
         lobby: (
             path: string,
             data: Record<string, string | boolean> = {},

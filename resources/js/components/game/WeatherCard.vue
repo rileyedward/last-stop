@@ -13,9 +13,7 @@ const props = withDefaults(
     },
 );
 
-const fx = computed(() =>
-    effectList(props.card.effects, props.card.distance, props.only),
-);
+const fx = computed(() => effectList(props.card.effects, props.only));
 const calm = computed(
     () => fx.value.length === 0 || fx.value.every((f) => f.value > 0),
 );
@@ -61,6 +59,17 @@ const calm = computed(
                 >{{ f.label.replace(' ', '') }}</span
             >
         </span>
-        <span v-else class="mt-auto text-[12px] text-[#93a2ba]">No effect</span>
+        <span
+            v-else
+            class="mt-auto text-[12px]"
+            :class="
+                card.special === 'free_run'
+                    ? 'text-[#f4b740]'
+                    : 'text-[#93a2ba]'
+            "
+            >{{
+                card.special === 'free_run' ? 'Next run free' : 'No effect'
+            }}</span
+        >
     </div>
 </template>

@@ -2,9 +2,11 @@
 import { computed, ref } from 'vue';
 import { dept, effectList, signed } from '@/game/departments';
 import type { GameView } from '@/game/types';
+import Flaps from '../Flaps.vue';
 import Gauge from '../Gauge.vue';
 import Icon from '../Icon.vue';
 import Sheet from '../Sheet.vue';
+import StationStrip from '../StationStrip.vue';
 import WeatherCard from '../WeatherCard.vue';
 
 const props = defineProps<{ game: GameView }>();
@@ -14,44 +16,59 @@ const inPlay = computed(() =>
 );
 const detail = ref<number | null>(null);
 const mine = computed(() => props.game.me?.department ?? null);
+const green = computed(() => props.game.departments.every((d) => d.atLine));
 
-function status(d: GameView['departments'][number]): {
-    text: string;
-    color: string;
-} {
-    const gap = d.score - props.game.crisisAt;
-    if (d.crisis) {
-        return {
-            text: `CRISIS · draws ${props.game.reducedHand}`,
-            color: '#FF8E92',
-        };
-    }
-    if (d.key === mine.value) {
-        return {
-            text: gap === 1 ? 'Yours · 1 from crisis' : 'Yours',
-            color: dept(d.key).color,
-        };
-    }
-    if (gap === 1) {
-        return { text: '1 from crisis', color: '#F4D9CC' };
+const here = computed(() => props.game.stations[props.game.leg]?.name ?? '');
+const next = computed(
+    () => props.game.stations[props.game.leg + 1]?.name ?? '',
+);
+const nextRise = computed(() => {
+    for (let leg = props.game.leg + 1; leg < props.game.legs; leg++) {
+        const line = props.game.stations[leg]?.line ?? props.game.line;
+        if (line > props.game.line) {
+            return { at: props.game.stations[leg].name, line };
+        }
     }
 
-    return { text: `${gap} above crisis`, color: '#93A2BA' };
-}
+    return null;
+});
 
 const daysLeft = computed(() =>
     Math.max(
         0,
         props.game.days -
             props.game.day +
-            (props.game.phase === 'dawn' || props.game.phase === 'day' ? 1 : 0),
+            (['boarding', 'dawn', 'day', 'reveal', 'dusk'].includes(
+                props.game.phase,
+            )
+                ? 1
+                : 0),
     ),
 );
-const needed = computed(() => {
-    const left = props.game.route - props.game.distance;
 
-    return daysLeft.value > 0 ? (left / daysLeft.value).toFixed(1) : '—';
-});
+function status(d: GameView['departments'][number]): {
+    text: string;
+    color: string;
+} {
+    const short = props.game.line - d.score;
+    if (d.crisis) {
+        return {
+            text: `CRISIS · ${short} short · draws ${props.game.reducedHand}`,
+            color: '#FF8E92',
+        };
+    }
+    if (short > 0) {
+        return {
+            text: `${short} short of the line`,
+            color: short === 1 ? '#F4D9CC' : '#F4B740',
+        };
+    }
+
+    return {
+        text: short === 0 ? 'At the line' : `${-short} over the line`,
+        color: '#5CC8A0',
+    };
+}
 
 const worst = computed(() => {
     let best: { name: string; from: number; to: number } | null = null;
@@ -87,17 +104,40 @@ const card = computed(() =>
                     }}
                 </div>
                 <h1 class="disp m-0 text-[34px] leading-[.9] font-black">
-                    The train
+                    Signal board
                 </h1>
             </div>
             <div
-                v-if="mine"
-                class="flex items-center gap-[6px] rounded-lg bg-[#16213a] px-2 py-[6px] text-[12px] text-[#c5d0e0]"
+                class="flex items-center gap-2 rounded-lg px-[10px] py-[7px]"
+                :style="{
+                    background: green ? '#0F2A1E' : '#2A0F14',
+                    border: `1px solid ${green ? '#2E7A55' : '#5A2228'}`,
+                }"
+                :aria-label="green ? 'Signal green' : 'Signal red'"
             >
+                <span class="lamp" :class="green ? 'off' : 'red'" />
+                <span class="lamp" :class="green ? 'green' : 'off'" />
                 <span
-                    class="h-[10px] w-[10px] rounded-[2px]"
-                    :style="{ background: dept(mine).color }"
-                />You: {{ dept(mine).short }}
+                    class="mono text-[12px] font-semibold tracking-[.12em]"
+                    :style="{ color: green ? '#8EE6B8' : '#FF8E92' }"
+                    >{{ green ? 'GREEN' : 'RED' }}</span
+                >
+            </div>
+        </div>
+
+        <div class="panel flex flex-col gap-3 p-[14px]">
+            <StationStrip :stations="game.stations" :leg="game.leg" names />
+            <div class="text-[14px] leading-[1.4] text-[#c5d0e0]">
+                At <b class="text-[#e8eef5]">{{ here }}</b
+                ><template v-if="next">
+                    · next stop <b class="text-[#e8eef5]">{{ next }}</b
+                    >. Every department needs
+                    <b class="text-[#f4b740]">{{ game.line }}</b> to leave.
+                    <template v-if="nextRise"
+                        >The line rises to {{ nextRise.line }} at
+                        {{ nextRise.at }}.</template
+                    ></template
+                >
             </div>
         </div>
 
@@ -108,11 +148,7 @@ const card = computed(() =>
                 class="panel flex flex-col gap-2 p-3"
                 :class="{ 'crisis-tile': d.crisis }"
                 :style="
-                    !d.crisis && d.key === mine
-                        ? 'border-color:#6E5590'
-                        : !d.crisis && d.score - game.crisisAt === 1
-                          ? 'border-color:#7A3A22;background:#24120F'
-                          : ''
+                    !d.crisis && d.key === mine ? 'border-color:#6E5590' : ''
                 "
             >
                 <div
@@ -124,14 +160,20 @@ const card = computed(() =>
                         :size="16"
                         :stroke="2.2"
                     />{{ d.code }}
+                    <span v-if="d.key === mine" class="ml-auto text-[#c39beb]"
+                        >YOURS</span
+                    >
                 </div>
                 <div class="flex items-baseline gap-[6px]">
                     <span class="mono text-[30px] leading-none font-semibold">{{
                         d.score
                     }}</span>
+                    <span class="mono text-[13px] text-[#93a2ba]"
+                        >/ {{ game.line }}</span
+                    >
                     <span
                         v-if="d.score !== d.atDawn"
-                        class="mono text-[13px]"
+                        class="mono ml-auto text-[13px]"
                         :class="d.score < d.atDawn ? 'dn' : 'text-[#f4b740]'"
                         >{{ signed(d.score - d.atDawn) }}</span
                     >
@@ -140,6 +182,8 @@ const card = computed(() =>
                     :score="d.score"
                     :color="dept(d.key).color"
                     :crisis-at="game.crisisAt"
+                    :max="game.scoreMax"
+                    :line="game.line"
                 />
                 <span
                     class="text-[12px]"
@@ -152,7 +196,35 @@ const card = computed(() =>
             </div>
         </div>
 
-        <div class="flex flex-col gap-2">
+        <div class="panel-dash grid grid-cols-3 gap-2 p-[14px]">
+            <div class="flex flex-col gap-[6px]">
+                <span class="label">Days left</span>
+                <Flaps :text="daysLeft" :pad="2" />
+            </div>
+            <div class="flex flex-col gap-[6px]">
+                <span class="label">Cord pulls</span>
+                <span class="mono text-[20px] font-semibold text-[#ff8e92]"
+                    >{{ game.cordLeft
+                    }}<span class="text-[13px] text-[#93a2ba]">
+                        / {{ game.cordPulls }} left</span
+                    ></span
+                >
+            </div>
+            <div class="flex flex-col gap-[6px]">
+                <span class="label">Next run</span>
+                <span
+                    class="mono text-[15px] font-semibold"
+                    :class="game.freeRun ? 'text-[#f4b740]' : ''"
+                    >{{
+                        game.freeRun
+                            ? 'Free · Tailwind'
+                            : `−${game.runCost} each`
+                    }}</span
+                >
+            </div>
+        </div>
+
+        <div v-if="game.weather.length" class="flex flex-col gap-2">
             <div class="flex justify-between">
                 <div class="label">
                     Today's weather · {{ game.weather.length }}
@@ -160,15 +232,15 @@ const card = computed(() =>
                 </div>
                 <div class="text-[12px] text-[#93a2ba]">Tap for detail</div>
             </div>
-            <div class="flex gap-2">
+            <div class="grid grid-cols-3 gap-2">
                 <button
                     v-for="(w, i) in game.weather"
                     :key="i"
                     type="button"
-                    class="flex flex-1 text-left"
+                    class="flex text-left"
                     @click="detail = i"
                 >
-                    <WeatherCard :card="w" :only="[...inPlay, 'distance']" />
+                    <WeatherCard :card="w" :only="inPlay" />
                 </button>
             </div>
         </div>
@@ -180,38 +252,6 @@ const card = computed(() =>
             {{ worst.name }} took the worst of it,
             <b class="text-[#e8eef5]">{{ worst.from }} → {{ worst.to }}</b
             >.
-            <template v-if="game.weatherDistance < 0">
-                The weather will cost
-                <b class="text-[#8fd3f0]"
-                    >{{ -game.weatherDistance }} distance</b
-                >
-                when today's tasks resolve.</template
-            >
-        </div>
-
-        <div class="panel-dash flex flex-col gap-2 p-[14px]">
-            <div class="flex justify-between text-[15px]">
-                <span class="text-[#b7c3d6]">Base speed today</span>
-                <b
-                    class="mono"
-                    :class="game.baseToday === 0 ? 'text-[#ff8e92]' : ''"
-                    >{{
-                        game.baseToday === 0
-                            ? '0 · brake'
-                            : signed(game.baseToday)
-                    }}</b
-                >
-            </div>
-            <div class="flex justify-between text-[15px]">
-                <span class="text-[#b7c3d6]">Weather distance today</span
-                ><b class="mono text-[#8fd3f0]">{{
-                    signed(game.weatherDistance)
-                }}</b>
-            </div>
-            <div class="flex justify-between text-[15px]">
-                <span class="text-[#b7c3d6]">Needed per day to arrive</span
-                ><b class="mono text-[#f4b740]">{{ needed }}</b>
-            </div>
         </div>
 
         <Sheet :open="card !== null" :title="card?.name" @close="detail = null">
@@ -229,36 +269,29 @@ const card = computed(() =>
                 <div class="panel flex flex-col gap-3 p-[14px]">
                     <div class="label">What it does</div>
                     <div
-                        v-for="f in effectList(card.effects, card.distance, [
-                            ...inPlay,
-                            'distance',
-                        ])"
+                        v-for="f in effectList(card.effects, inPlay)"
                         :key="f.key"
                         class="mono flex justify-between text-[14px]"
                     >
-                        <span>{{
-                            f.key === 'distance' ? 'DIST' : dept(f.key).code
-                        }}</span
+                        <span>{{ dept(f.key).code }}</span
                         ><span :class="f.value < 0 ? 'dn' : ''">{{
                             signed(f.value)
                         }}</span>
                     </div>
                     <div
-                        v-if="
-                            effectList(card.effects, card.distance, [
-                                ...inPlay,
-                                'distance',
-                            ]).length === 0
+                        v-if="card.special === 'free_run'"
+                        class="text-[14px] text-[#f4b740]"
+                    >
+                        The next run costs nothing.
+                    </div>
+                    <div
+                        v-else-if="
+                            effectList(card.effects, inPlay).length === 0
                         "
                         class="text-[14px] text-[#93a2ba]"
                     >
                         No effect.
                     </div>
-                </div>
-                <div class="text-[14px] leading-[1.45] text-[#b7c3d6]">
-                    Weather is background pressure: nobody responds to it
-                    directly. Distance effects count when the day's tasks
-                    resolve.
                 </div>
                 <div class="flex gap-[10px]">
                     <button

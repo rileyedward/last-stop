@@ -70,7 +70,7 @@ const meta = computed(() => dept(props.me.department));
                     >
                         {{
                             me.traitor
-                                ? 'NORTHERN LANTERN No. 9 · ONE WAY'
+                                ? 'NORTHERN LANTERN No. 9 · GOING NOWHERE'
                                 : 'NORTHERN LANTERN No. 9 · HOLLOW PINES → LAST STOP'
                         }}
                     </div>
@@ -82,14 +82,16 @@ const meta = computed(() => dept(props.me.department));
                     </div>
                     <div class="text-[17px] leading-[1.45]">
                         <template v-if="me.traitor"
-                            >This train must not arrive. Put two departments in
-                            crisis or run out the clock, and look like crew
-                            while you do it.</template
+                            >Keep the train snowed in. Hold your department
+                            back, pull the cord on a green signal, and look like
+                            crew while you do it. If it reaches Last Stop, don't
+                            get named.</template
                         >
                         <template v-else
-                            >Get the train to Last Stop within
-                            {{ game.days }} days. Somebody aboard is working
-                            against you.</template
+                            >Get every department to the line and run all
+                            {{ game.legs }} legs to Last Stop within
+                            {{ game.days }} days, then name the
+                            traitor.</template
                         >
                     </div>
                 </div>
@@ -138,11 +140,17 @@ const meta = computed(() => dept(props.me.department));
                         >You're working with {{ me.partners.join(' and ') }}.
                         They know about you too.
                     </template>
-                    <template v-if="me.forecastOn"
-                        >Each night you'll see the first of tomorrow's weather
-                        cards. Nobody else will.</template
+                    At dusk on a green signal you can pull the cord:
+                    {{ game.cordPulls }}
+                    {{ game.cordPulls === 1 ? 'pull' : 'pulls' }} for the whole
+                    train<template v-if="game.clueSize > 0"
+                        >, and each pull names {{ game.clueSize }} players, you
+                        among them</template
+                    >.
+                    <template v-if="game.mustPull"
+                        >You must pull at least once, or you can't win at Last
+                        Stop.</template
                     >
-                    <template v-else>Nobody knows. Keep it that way.</template>
                 </div>
             </div>
             <div v-else class="panel flex flex-col gap-[6px] px-4 py-[14px]">

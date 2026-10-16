@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { boardActions } from '@/game/actions';
-import { dept, effectList, signed } from '@/game/departments';
+import { dept, effectList } from '@/game/departments';
 import type { BoardState } from '@/game/types';
 import Avatar from '../Avatar.vue';
 import Sheet from '../Sheet.vue';
@@ -13,10 +13,9 @@ const game = computed(() => props.state.game!);
 const lobby = computed(() => props.state.lobby);
 const reveal = computed(() => game.value.reveal!);
 const actions = computed(() => boardActions(lobby.value.code));
-const inPlay = computed(() => [
-    ...game.value.departments.map((d) => d.key as string),
-    'distance',
-]);
+const inPlay = computed(() =>
+    game.value.departments.map((d) => d.key as string),
+);
 
 const sheet = ref<'hands' | 'wins' | null>(null);
 const name = (id: string | null) =>
@@ -36,30 +35,55 @@ const banner = computed(() => {
             stamp: 'ENDED',
         };
     }
+    const was = `The ${reveal.value.traitors.length > 1 ? 'traitors were' : 'traitor was'} ${traitorNames.value}.`;
     if (game.value.winner === 'crew') {
-        return {
-            title: 'Crew wins',
-            line: `The train made Last Stop. The traitor was ${traitorNames.value}.`,
-            stamp: 'ARRIVED',
-        };
+        const why =
+            {
+                named: 'The train made Last Stop and the crew named a traitor',
+                never_pulled:
+                    'The crew named the wrong person, but the cord was never pulled',
+                arrived: 'The train made Last Stop',
+            }[game.value.cause as string] ?? 'The train made Last Stop';
+
+        return { title: 'Crew wins', line: `${why}. ${was}`, stamp: 'ARRIVED' };
     }
     const why =
-        game.value.cause === 'crisis'
-            ? 'Two departments fell into crisis'
-            : 'The train ran out of days';
+        {
+            crisis: 'Two departments fell into crisis',
+            clock: 'The train ran out of days before Last Stop',
+            wrong_name:
+                'The train arrived, but the crew named the wrong person',
+            tie_vote: 'The train arrived, but the arrival vote tied',
+        }[game.value.cause as string] ?? 'The traitor got away';
 
     return {
-        title: game.value.traitorCount > 1 ? 'Traitors win' : 'Traitor wins',
-        line: `${why}. The traitor was ${traitorNames.value}.`,
-        stamp: game.value.cause === 'crisis' ? 'CRISIS' : 'STRANDED',
+        title:
+            reveal.value.traitors.length > 1 ? 'Traitors win' : 'Traitor wins',
+        line: `${why}. ${was}`,
+        stamp:
+            game.value.cause === 'crisis'
+                ? 'CRISIS'
+                : game.value.cause === 'clock'
+                  ? 'STRANDED'
+                  : 'ESCAPED',
     };
 });
 
-const correct = computed(
-    () => reveal.value.guesses.filter((g) => g.correct).length,
+const accusations = computed(() =>
+    reveal.value.accusations.map((a) => ({
+        ...a,
+        correct:
+            a.suspect !== null && reveal.value.traitors.includes(a.suspect),
+    })),
 );
-const crisisCount = computed(
-    () => game.value.departments.filter((d) => d.crisis).length,
+const correct = computed(
+    () => accusations.value.filter((a) => a.correct).length,
+);
+const detentions = computed(() =>
+    reveal.value.days.reduce(
+        (n, d) => n + d.nominations.filter((x) => x.passed).length,
+        0,
+    ),
 );
 
 function won(id: string): boolean {
@@ -127,33 +151,33 @@ const traitorDept = (id: string) =>
                 class="flex-1 rounded-[10px] bg-[#0b1220] px-[6px] py-[10px] text-center"
             >
                 <div class="mono text-[18px] font-semibold text-[#8fd3f0]">
-                    {{ game.distance }}/{{ game.route }}
+                    {{ reveal.leg }}/{{ game.legs }}
                 </div>
-                <div class="label mt-1 text-[9px]">Distance</div>
+                <div class="label mt-1 text-[9px]">Legs</div>
             </div>
             <div
                 class="flex-1 rounded-[10px] bg-[#0b1220] px-[6px] py-[10px] text-center"
             >
                 <div class="mono text-[18px] font-semibold">
-                    {{ crisisCount }}
+                    {{ detentions }}
                 </div>
-                <div class="label mt-1 text-[9px]">In crisis</div>
+                <div class="label mt-1 text-[9px]">Detained</div>
             </div>
             <div
                 class="flex-1 rounded-[10px] bg-[#0b1220] px-[6px] py-[10px] text-center"
             >
                 <div class="mono text-[18px] font-semibold text-[#ff8e92]">
-                    {{ reveal.brakes }}
+                    {{ reveal.pulls.length }}
                 </div>
-                <div class="label mt-1 text-[9px]">Brakes</div>
+                <div class="label mt-1 text-[9px]">Cord pulls</div>
             </div>
             <div
                 class="flex-1 rounded-[10px] bg-[#0b1220] px-[6px] py-[10px] text-center"
             >
                 <div class="mono text-[18px] font-semibold">
-                    {{ correct }}/{{ reveal.guesses.length }}
+                    {{ correct }}/{{ accusations.length }}
                 </div>
-                <div class="label mt-1 text-[9px]">Guessed</div>
+                <div class="label mt-1 text-[9px]">Named right</div>
             </div>
         </div>
 
@@ -179,18 +203,40 @@ const traitorDept = (id: string) =>
                 <div class="text-[13px] text-[#f6e3e4]">
                     {{ traitorDept(id).name }} ·
                     {{
-                        reveal.everRestricted.includes(id)
-                            ? 'restricted at least once'
-                            : 'never once restricted'
+                        reveal.everDetained.includes(id)
+                            ? 'detained at least once'
+                            : 'never once detained'
+                    }}
+                    ·
+                    {{
+                        reveal.pulls.filter((p) => p.by === id).length === 0
+                            ? 'never pulled the cord'
+                            : `pulled the cord ${reveal.pulls.filter((p) => p.by === id).length}×`
                     }}
                 </div>
             </div>
         </div>
 
-        <div v-if="reveal.guesses.length" class="flex flex-col">
-            <div class="label mb-1">Arrival inquiry: who everyone named</div>
+        <div v-if="reveal.pulls.length" class="flex flex-col gap-[6px]">
+            <div class="label">Every cord pull</div>
             <div
-                v-for="g in reveal.guesses"
+                v-for="(pull, i) in reveal.pulls"
+                :key="i"
+                class="rounded-[10px] border border-[#5a2228] bg-[#1a0f13] px-3 py-2 text-[14px] text-[#f6e3e4]"
+            >
+                Day {{ pull.day }}: <b>{{ name(pull.by) }}</b> pulled it.
+                <span class="text-[#c9a3a6]">{{
+                    pull.clue.length
+                        ? `The clue named ${pull.clue.map((id) => name(id)).join(', ')}.`
+                        : 'No clue.'
+                }}</span>
+            </div>
+        </div>
+
+        <div v-if="accusations.length" class="flex flex-col">
+            <div class="label mb-1">Arrival vote: who everyone named</div>
+            <div
+                v-for="g in accusations"
                 :key="g.id"
                 class="flex items-center gap-[10px] border-b border-[#18233a] py-2 text-[15px]"
             >
@@ -306,8 +352,7 @@ const traitorDept = (id: string) =>
                         Day {{ shownDay.day }} of {{ reveal.days.length }}
                     </div>
                     <div class="mono text-[12px] text-[#8fd3f0]">
-                        {{ shownDay.weather.map((w) => w.name).join(' · ') }} ·
-                        distance {{ signed(shownDay.dayDistance) }}
+                        {{ shownDay.weather.map((w) => w.name).join(' · ') }}
                     </div>
                 </div>
                 <button
@@ -381,7 +426,7 @@ const traitorDept = (id: string) =>
                             {{
                                 c.id === pick.pick
                                     ? 'PLAYED'
-                                    : c.id === pick.vetoed
+                                    : pick.vetoed.includes(c.id)
                                       ? 'VETOED'
                                       : 'PASSED'
                             }}
@@ -393,33 +438,42 @@ const traitorDept = (id: string) =>
                         </div>
                         <div class="mono text-[11px] leading-[1.4]">
                             <div
-                                v-for="f in effectList(
-                                    c.effects,
-                                    c.distance,
-                                    inPlay,
-                                )"
+                                v-for="f in effectList(c.effects, inPlay)"
                                 :key="f.key"
                                 :class="{ neg: f.value < 0 }"
                             >
-                                {{
-                                    f.key === 'distance'
-                                        ? `DIST ${signed(f.value)}`
-                                        : f.label
-                                }}
+                                {{ f.label }}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div
-                v-if="shownDay.brake"
+                v-if="shownDay.dusk"
+                class="px-3 py-[10px] text-[14px]"
+                :class="
+                    shownDay.dusk.outcome === 'pulled' ? 'notice-red' : 'panel'
+                "
+            >
+                Dusk {{ shownDay.day }}:
+                <template v-if="shownDay.dusk.outcome === 'pulled'"
+                    >{{ name(shownDay.dusk.puller) }} pulled the cord.</template
+                >
+                <template v-else-if="shownDay.dusk.outcome === 'ran'"
+                    >green, the train ran to
+                    {{ game.stations[shownDay.dusk.legAfter]?.name
+                    }}{{ shownDay.dusk.free ? ' for free' : '' }}.</template
+                >
+                <template v-else>red, the train stayed put.</template>
+            </div>
+            <div
+                v-for="(n, i) in shownDay.nominations"
+                :key="i"
                 class="notice-red px-3 py-[10px] text-[14px]"
             >
-                Night {{ shownDay.day }}:
-                {{ name(shownDay.brake.puller) }} pulled the brake on
-                {{ name(shownDay.brake.nominee) }}.
-                {{ shownDay.brake.passed ? 'Carried' : 'Failed' }}
-                {{ shownDay.brake.yes }} to {{ shownDay.brake.no }}.
+                Night {{ shownDay.day }}: {{ name(n.nominator) }} nominated
+                {{ name(n.nominee) }}. {{ n.passed ? 'Detained' : 'Failed' }}
+                {{ n.yes }} to {{ n.no }}.
             </div>
         </Sheet>
 

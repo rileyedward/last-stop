@@ -7,13 +7,14 @@ import Sheet from './Sheet.vue';
 const props = defineProps<{ open: boolean; log: LogEntry[] }>();
 const emit = defineEmits<{ close: [] }>();
 
-const filter = ref<'ALL' | 'WEATHER' | 'PICKS' | 'BRAKE'>('ALL');
-const filters = ['ALL', 'WEATHER', 'PICKS', 'BRAKE'] as const;
+const filter = ref<'ALL' | 'WEATHER' | 'PICKS' | 'TRAIN' | 'VOTES'>('ALL');
+const filters = ['ALL', 'WEATHER', 'PICKS', 'TRAIN', 'VOTES'] as const;
 
 const kinds: Record<string, string[]> = {
-    WEATHER: ['weather'],
-    PICKS: ['pick', 'override', 'veto', 'result'],
-    BRAKE: ['brake', 'vote', 'veto'],
+    WEATHER: ['weather', 'tailwind'],
+    PICKS: ['pick', 'override', 'veto'],
+    TRAIN: ['signal', 'run', 'cord'],
+    VOTES: ['nominate', 'vote', 'veto', 'arrival', 'result'],
 };
 
 const days = computed(() => {
@@ -43,8 +44,13 @@ const icon = (kind: string) =>
         pick: { icon: '▲', bg: '#2A2110', fg: '#F4B740' },
         override: { icon: '!', bg: '#2A2110', fg: '#F4B740' },
         veto: { icon: '✕', bg: '#2A0F14', fg: '#FF8E92' },
-        brake: { icon: '■', bg: '#2A0F14', fg: '#FF8E92' },
+        tailwind: { icon: '»', bg: '#2A2110', fg: '#F4B740' },
+        signal: { icon: '●', bg: '#16213A', fg: '#8EE6B8' },
+        run: { icon: '→', bg: '#0F2A1E', fg: '#8EE6B8' },
+        cord: { icon: '■', bg: '#2A0F14', fg: '#FF8E92' },
+        nominate: { icon: '?', bg: '#2A0F14', fg: '#FF8E92' },
         vote: { icon: '✓', bg: '#2A0F14', fg: '#FF8E92' },
+        arrival: { icon: '◆', bg: '#2A2110', fg: '#F4B740' },
         result: { icon: '=', bg: '#0F2A33', fg: '#8FD3F0' },
         night: { icon: '☾', bg: '#16213A', fg: '#E8EEF5' },
     })[kind] ?? { icon: '·', bg: '#16213A', fg: '#93A2BA' };
@@ -96,15 +102,11 @@ const icon = (kind: string) =>
                             class="flex flex-wrap gap-1"
                         >
                             <span
-                                v-for="x in effectList(e.fx, 0)"
+                                v-for="x in effectList(e.fx)"
                                 :key="x.key"
                                 class="chip"
                                 :class="{ dn: x.value < 0 }"
-                                >{{
-                                    x.key === 'distance'
-                                        ? `DIST ${x.value > 0 ? '+' : '−'}${Math.abs(x.value)}`
-                                        : x.label
-                                }}</span
+                                >{{ x.label }}</span
                             >
                         </span>
                     </div>
@@ -115,8 +117,8 @@ const icon = (kind: string) =>
                 class="py-4 text-[14px] text-[#93a2ba]"
             >
                 {{
-                    filter === 'BRAKE'
-                        ? 'Nobody has pulled the brake yet this trip.'
+                    filter === 'VOTES'
+                        ? 'Nobody has been nominated yet this trip.'
                         : 'Nothing here yet.'
                 }}
             </div>

@@ -11,10 +11,9 @@ const emit = defineEmits<{
 }>();
 
 const me = computed(() => props.game.me!);
-const inPlay = computed(() => [
-    ...props.game.departments.map((d) => d.key as string),
-    'distance',
-]);
+const inPlay = computed(() =>
+    props.game.departments.map((d) => d.key as string),
+);
 const selected = ref<string | null>(me.value.pick);
 const sending = ref(false);
 
@@ -32,11 +31,7 @@ const card = computed(
 watch(
     card,
     (c) => {
-        const fx: Record<string, number> = { ...c?.effects };
-        if (c?.distance) {
-            fx.distance = c.distance;
-        }
-        emit('preview', fx);
+        emit('preview', { ...c?.effects } as Record<string, number>);
     },
     { immediate: true },
 );
@@ -58,7 +53,7 @@ const changed = computed(
 );
 
 function choose(id: string): void {
-    if (!canChoose.value || id === me.value.vetoed) {
+    if (!canChoose.value || me.value.vetoed.includes(id)) {
         return;
     }
     selected.value = id;
@@ -91,8 +86,8 @@ function decide(decision: 'allow' | 'veto'): void {
         >
             <div class="flex flex-col gap-1">
                 <div class="label text-[#f4b740]">
-                    Escort duty · day {{ duty.dayOfRestriction }} of
-                    {{ game.restrictDays }}
+                    Escort duty · day {{ duty.dayOfDetention }} of
+                    {{ game.detainDays }}
                 </div>
                 <h2 class="disp m-0 text-[32px] leading-[.9] font-black">
                     {{ duty.name }}'s hand
@@ -116,7 +111,7 @@ function decide(decision: 'allow' | 'veto'): void {
                     :selected="
                         c.id === duty.pick && duty.pickState !== 'repick'
                     "
-                    :stamp="c.id === duty.vetoed ? 'vetoed' : null"
+                    :stamp="duty.vetoed.includes(c.id) ? 'vetoed' : null"
                     :tag="
                         c.id === duty.pick && duty.pickState !== 'none'
                             ? duty.pickState === 'final'
@@ -132,8 +127,8 @@ function decide(decision: 'allow' | 'veto'): void {
                 <div class="panel flex flex-col gap-2 p-3">
                     <div class="label">If you veto, everyone sees</div>
                     <div class="text-[15px] leading-[1.4] italic">
-                        "{{ duty.name }}'s first pick was vetoed by their
-                        escort, {{ myName }}."
+                        "{{ duty.name }}'s pick was vetoed by their escort,
+                        {{ myName }}."
                     </div>
                     <div class="text-[13px] text-[#93a2ba]">
                         Not which card. They pick again from what's left{{
@@ -154,10 +149,13 @@ function decide(decision: 'allow' | 'veto'): void {
                     <button
                         type="button"
                         class="btn btn-danger flex-1"
-                        :disabled="duty.hand.length < 2"
+                        :disabled="
+                            duty.vetoesLeft < 1 ||
+                            duty.hand.length - duty.vetoed.length < 2
+                        "
                         @click="decide('veto')"
                     >
-                        Veto · 1 a day
+                        Veto · {{ duty.vetoesLeft }} left today
                     </button>
                 </div>
             </template>
@@ -172,8 +170,12 @@ function decide(decision: 'allow' | 'veto'): void {
                 v-else-if="duty.pickState === 'repick'"
                 class="text-[14px] text-[#ff8e92]"
             >
-                You vetoed {{ dutyPick?.name }}. Waiting for {{ duty.name }} to
-                pick again.
+                You vetoed
+                {{
+                    duty.hand.find(
+                        (c) => c.id === duty?.vetoed[duty.vetoed.length - 1],
+                    )?.name ?? dutyPick?.name
+                }}. Waiting for {{ duty.name }} to pick again.
             </div>
             <div v-else class="text-[14px] text-[#b7c3d6]">
                 {{ duty.name }}'s pick is settled for today.
@@ -204,12 +206,12 @@ function decide(decision: 'allow' | 'veto'): void {
         </div>
 
         <div
-            v-if="me.restricted && me.escortedBy"
+            v-if="me.detained && me.escortedBy"
             class="notice-red px-[14px] py-3 text-[14px] leading-[1.4]"
         >
-            <b class="text-[#ff8e92]">You're restricted.</b>
-            {{ me.escortedBy }} sees your hand and can veto your first pick once
-            today. Your first pick is final once you send it.
+            <b class="text-[#ff8e92]">You're detained.</b>
+            {{ me.escortedBy }} sees your hand and can veto your pick. Your pick
+            goes to them as soon as you send it.
         </div>
 
         <div class="flex items-end justify-between">
@@ -239,10 +241,12 @@ function decide(decision: 'allow' | 'veto'): void {
             :only="inPlay"
             :selected="selected === c.id"
             :dimmed="
-                selected !== null && selected !== c.id && c.id !== me.vetoed
+                selected !== null &&
+                selected !== c.id &&
+                !me.vetoed.includes(c.id)
             "
             :stamp="
-                c.id === me.vetoed
+                me.vetoed.includes(c.id)
                     ? me.pickState === 'final' && me.pick === c.id
                         ? 'override'
                         : 'vetoed'
@@ -312,7 +316,7 @@ function decide(decision: 'allow' | 'veto'): void {
             >
                 Locked in ·
                 {{
-                    me.overridesLeft < 1 && me.vetoed === me.pick
+                    me.pick && me.vetoed.includes(me.pick)
                         ? 'override'
                         : 'final'
                 }}
