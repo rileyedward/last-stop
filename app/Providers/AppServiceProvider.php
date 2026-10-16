@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Admin\AdminDefaults;
 use App\Game\Data\GameData;
 use App\Game\Engine\Engine;
 use App\Lobby\Identity;
@@ -11,7 +12,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Validation\Rules\Password;
 use Random\Randomizer;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(GameData::class, fn () => GameData::shipped());
+        $this->app->singleton(GameData::class, fn ($app) => $app->make(AdminDefaults::class)->gameData());
         $this->app->bind(Engine::class, fn ($app) => new Engine($app->make(GameData::class), new Randomizer));
     }
 
@@ -45,16 +45,6 @@ class AppServiceProvider extends ServiceProvider
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
-        );
-
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
-            : null,
         );
     }
 }

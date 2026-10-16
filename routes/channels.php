@@ -4,10 +4,6 @@ use App\Lobby\Guest;
 use App\Lobby\LobbyStore;
 use Illuminate\Support\Facades\Broadcast;
 
-Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
-    return (int) $user->id === (int) $id;
-});
-
 // One player's own nudges. Only the browser holding that player's token.
 Broadcast::channel('player.{id}', function ($user, string $id) {
     return $user instanceof Guest && $user->id === $id;

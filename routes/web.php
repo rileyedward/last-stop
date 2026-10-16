@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\CardsController;
+use App\Http\Controllers\Admin\LoginController;
+use App\Http\Controllers\Admin\RulesController;
 use App\Http\Controllers\Game\BoardController;
 use App\Http\Controllers\Game\HomeController;
 use App\Http\Controllers\Game\LobbyController;
+use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsurePlayerToken;
 use Illuminate\Support\Facades\Route;
 
@@ -36,8 +40,19 @@ Route::middleware(EnsurePlayerToken::class)->group(function () {
     });
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
-});
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('login', [LoginController::class, 'show'])->name('login');
+    Route::post('login', [LoginController::class, 'store'])->name('login.store');
 
-require __DIR__.'/settings.php';
+    Route::middleware(EnsureAdmin::class)->group(function () {
+        Route::get('/', fn () => redirect()->route('admin.rules'))->name('home');
+        Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
+        Route::get('rules', [RulesController::class, 'show'])->name('rules');
+        Route::post('rules', [RulesController::class, 'update'])->name('rules.update');
+        Route::post('rules/reset', [RulesController::class, 'reset'])->name('rules.reset');
+        Route::get('cards', [CardsController::class, 'show'])->name('cards');
+        Route::post('cards/{deck}', [CardsController::class, 'import'])->name('cards.import');
+        Route::get('cards/{deck}/export', [CardsController::class, 'export'])->name('cards.export');
+        Route::post('cards/{deck}/reset', [CardsController::class, 'reset'])->name('cards.reset');
+    });
+});

@@ -1,8 +1,4 @@
 import { createInertiaApp } from '@inertiajs/vue3';
-import { initializeTheme } from '@/composables/useAppearance';
-import AppLayout from '@/layouts/AppLayout.vue';
-import AuthLayout from '@/layouts/AuthLayout.vue';
-import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 import { configureEcho } from '@laravel/echo-vue';
 
@@ -12,25 +8,11 @@ configureEcho({
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
-// The game's own pages bring their own frame.
-const GAME_PAGES = ['Name', 'Home', 'Join', 'Board', 'Station', 'Gone'];
-
 void createInertiaApp({
     title: (title) =>
         title && title !== appName ? `${title} - ${appName}` : appName,
-    layout: (name) => {
-        switch (true) {
-            case name === 'Welcome':
-            case GAME_PAGES.includes(name):
-                return null;
-            case name.startsWith('auth/'):
-                return AuthLayout;
-            case name.startsWith('settings/'):
-                return [AppLayout, SettingsLayout];
-            default:
-                return AppLayout;
-        }
-    },
+    // Every page, game and admin alike, brings its own frame.
+    layout: () => null,
     withApp: (app) => {
         app.directive('focus', {
             mounted: (el: HTMLElement, shouldFocus) => {
@@ -41,12 +23,9 @@ void createInertiaApp({
         });
     },
     progress: {
-        color: '#4B5563',
+        color: '#F4B740',
     },
 });
-
-// This will set light / dark mode on page load...
-initializeTheme();
 
 // This will listen for flash toast data from the server...
 initializeFlashToast();

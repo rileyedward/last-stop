@@ -23,4 +23,20 @@ return [
 
     'name_max' => 16,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin
+    |--------------------------------------------------------------------------
+    |
+    | One admin login, no users table. The password may be plain text or a
+    | bcrypt/argon hash (php artisan tinker: Hash::make('...')).
+    |
+    */
+
+    'admin' => [
+        'username' => env('ADMIN_USERNAME'),
+        'password' => env('ADMIN_PASSWORD'),
+        'attempts_per_minute' => 5,
+    ],
+
 ];

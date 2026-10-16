@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\User;
-
 return [
 
     /*
@@ -67,15 +65,13 @@ return [
     */
 
     'providers' => [
+        // There are no user accounts: players are guests with a token
+        // cookie, and the admin signs in with ADMIN_USERNAME/ADMIN_PASSWORD.
+        // The framework still expects a provider for the default guard.
         'users' => [
-            'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
+            'driver' => 'database',
+            'table' => 'users',
         ],
-
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
     ],
 
     /*
