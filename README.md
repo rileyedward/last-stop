@@ -2,6 +2,8 @@
 
 A train-themed social deduction game for friends on voice chat.
 
+> **Status:** Active — private, in development. Not hosted yet; hosting on Laravel Cloud is planned.
+
 ## Overview
 
 ### What is Last Stop?
@@ -21,21 +23,21 @@ This is the **Departure** version of the game. The earlier Draft 1 game lives on
 
 ### Prerequisites
 
-Ensure you have the following prerequisites installed on your system. You can verify each installation by running the provided commands in your terminal.
+Ensure you have the following installed. You can verify each one by running the provided command in your terminal.
 
-1. **PHP** (8.3+) is required for the application. Check if PHP is installed by running:
+1. **PHP** (8.3+) is required for the application. Check it by running:
 
     ```bash
     php --version
     ```
 
-2. **Composer** is necessary for managing PHP dependencies. Verify its installation with:
+2. **Composer** manages PHP dependencies. Check it by running:
 
     ```bash
     composer --version
     ```
 
-3. **Node** and **NPM** are needed for managing frontend dependencies. Check their installations with:
+3. **Node** and **NPM** manage frontend dependencies. Check them by running:
 
     ```bash
     node --version
@@ -93,7 +95,7 @@ The engine in `app/Game/Engine` is plain PHP, state and action in, state and log
 
 ## Deployment
 
-The app runs on Laravel Cloud with a PostgreSQL database; all schema and queries are portable. Production needs a shared cache with locks (a Key-Value store with `CACHE_STORE=redis`), a queue worker for phase timers, and Cloud's managed WebSockets. Use `php artisan migrate --force` as the deploy command. See [docs/deploy-laravel-cloud.md](docs/deploy-laravel-cloud.md) for the full checklist.
+The app is set up to run on Laravel Cloud with a PostgreSQL database; all schema and queries are portable. Production needs a shared cache with locks (a Key-Value store with `CACHE_STORE=redis`), a queue worker for phase timers, and Cloud's managed WebSockets. Use `php artisan migrate --force` as the deploy command. See [docs/deploy-laravel-cloud.md](docs/deploy-laravel-cloud.md) for the full checklist.
 
 ## Testing
 
