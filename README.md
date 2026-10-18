@@ -1,37 +1,116 @@
-# Last Stop: Departure
+# Last Stop
 
-A train-themed social deduction game for friends on voice chat, played in the browser on phones. This branch (`v2`) is the **Departure** version: the train is snowed in at Hollow Pines and only leaves when every department reaches the line. A hidden traitor holds their department back and pulls the cord. Reach Last Stop in time and name the traitor to win.
+A train-themed social deduction game for friends on voice chat.
 
-The rulebook lives in the project's design folder (`design/departure/departure-v0.md`); `main` is the earlier Draft 1 game.
+## Overview
 
-## Run it
+### What is Last Stop?
 
+Last Stop is a social deduction game played in the browser on phones while everyone talks over voice chat. The train is snowed in at Hollow Pines and only leaves when every department reaches the line. A hidden traitor holds their department back and pulls the cord. Reach Last Stop in time and name the traitor to win.
+
+This is the **Departure** version of the game. The earlier Draft 1 game lives on the `v1` branch. The rulebook lives in the project's design folder (`design/departure/departure-v0.md`).
+
+### Key Features
+
+- **Lobbies**: Type a name, start a lobby and share the `/board/CODE` link. No accounts; players are guests with a token cookie. 4 to 10 players.
+- **Station Screen**: `/board/CODE/station` is a big screen for screen-sharing on the call.
+- **Live Updates**: Each phone loads only its own view, and WebSocket pings say when something changed. Without WebSockets, pages poll every 3 seconds.
+- **Admin**: Rules, the per-player-count table, presets, timers, task cards and weather cards, all editable at `/admin` with a Reset back to the defaults.
+
+## Getting Started
+
+### Prerequisites
+
+Ensure you have the following prerequisites installed on your system. You can verify each installation by running the provided commands in your terminal.
+
+1. **PHP** (8.3+) is required for the application. Check if PHP is installed by running:
+
+    ```bash
+    php --version
+    ```
+
+2. **Composer** is necessary for managing PHP dependencies. Verify its installation with:
+
+    ```bash
+    composer --version
+    ```
+
+3. **Node** and **NPM** are needed for managing frontend dependencies. Check their installations with:
+
+    ```bash
+    node --version
+    npm --version
+    ```
+
+### Installation
+
+1. Duplicate the example environment file and configure it with your settings. Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` for the one admin login (the password may be plain text or a bcrypt hash), and fill in the `REVERB_APP_ID`, `REVERB_APP_KEY` and `REVERB_APP_SECRET` values (any strings work locally):
+
+    ```bash
+    cp .env.example .env
+    ```
+
+2. Install PHP and JavaScript dependencies:
+
+    ```bash
+    composer install
+    npm install
+    ```
+
+3. Generate a new PHP application key:
+
+    ```bash
+    php artisan key:generate
+    ```
+
+4. Create the SQLite database file:
+
+    ```bash
+    touch database/database.sqlite
+    ```
+
+5. Apply database migrations:
+
+    ```bash
+    php artisan migrate
+    ```
+
+6. Start the development environment, which runs the web server, queue worker, Reverb and Vite together:
+
+    ```bash
+    composer dev
+    ```
+
+Alternatively, `composer setup` installs dependencies, copies `.env`, generates the key, migrates and builds the frontend in one go.
+
+The admin panel lives at `/admin`. Leave `ADMIN_USERNAME` and `ADMIN_PASSWORD` empty and it refuses every login.
+
+## Game Data
+
+The game defaults ship as CSVs in `resources/game/`: the rules (`settings.csv`), the per-player-count table (`players.csv`), presets, timers, task cards and weather cards. Edits made in the admin go in the `game_settings` and `game_cards` tables, and Reset goes back to the CSVs.
+
+The engine in `app/Game/Engine` is plain PHP, state and action in, state and log out, ported from the Departure balance simulator. Lobbies and games live only in the cache, one entry per boarding code, with a lock around every change.
+
+## Deployment
+
+The app runs on Laravel Cloud with a PostgreSQL database; all schema and queries are portable. Production needs a shared cache with locks (a Key-Value store with `CACHE_STORE=redis`), a queue worker for phase timers, and Cloud's managed WebSockets. Use `php artisan migrate --force` as the deploy command. See [docs/deploy-laravel-cloud.md](docs/deploy-laravel-cloud.md) for the full checklist.
+
+## Testing
+
+Run the Pest test suite along with Pint formatting and PHPStan checks:
+
+```bash
+composer test
 ```
-composer setup     # first time: install, .env, key, migrate, build
-composer dev       # web server, queue worker, Reverb and Vite together
+
+Run every CI check, including frontend linting and type checks:
+
+```bash
+composer ci:check
 ```
 
-Open `/`, type a name, start a lobby and share the `/board/CODE` link. `/board/CODE/station` is the big screen for screen-sharing. 4 to 10 players.
+`tests/Unit/Game/SimulatorReplayTest.php` replays games recorded from the Departure simulator through the PHP engine. To re-record them:
 
-The admin lives at `/admin`. Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env` first (the password may be a bcrypt hash).
-
-## How it's built
-
-- Laravel with Inertia, Vue, TypeScript and Tailwind. SQLite locally, Postgres in production.
-- **Game data** ships as CSVs in `resources/game/`: rules (`settings.csv`), the per-player-count table (`players.csv`), presets, timers, task cards and weather cards. The admin can override any of them; edits go in the `game_settings` and `game_cards` tables, and Reset goes back to the CSVs.
-- **Engine** (`app/Game/Engine`): plain PHP, state + action in, state + log out, ported from the Departure balance simulator.
-- **Lobbies and games** live only in the cache, one entry per boarding code, with a lock around every change. Each browser loads only its own view over HTTP; WebSocket pings just say "something changed".
-- Players are guests with a token cookie. There are no accounts; the only login is the admin's.
-
-## Checks
-
+```bash
+python3 tests/Fixtures/sim/record.py path/to/departure_sim.py
 ```
-composer test          # Pint, PHPStan and the Pest suite
-npm run check          # format and lint
-npm run types:check
-npm run build
-```
-
-`tests/Unit/Game/SimulatorReplayTest.php` replays games recorded from the Departure simulator through the PHP engine. To re-record them: `python3 tests/Fixtures/sim/record.py path/to/departure_sim.py`.
-
-Deploying: see [docs/deploy-laravel-cloud.md](docs/deploy-laravel-cloud.md).

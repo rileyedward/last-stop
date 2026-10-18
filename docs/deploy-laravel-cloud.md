@@ -1,6 +1,6 @@
 # Deploying Last Stop to Laravel Cloud
 
-A checklist for getting the `v2` branch (Departure) onto Laravel Cloud for a playtest. Names of buttons and resources can shift in the Cloud dashboard; the [Cloud docs](https://cloud.laravel.com/docs) are the reference.
+A checklist for getting the `main` branch (Departure) onto Laravel Cloud for a playtest. Names of buttons and resources can shift in the Cloud dashboard; the [Cloud docs](https://cloud.laravel.com/docs) are the reference.
 
 ## What production needs, and why
 
@@ -13,7 +13,7 @@ A checklist for getting the `v2` branch (Departure) onto Laravel Cloud for a pla
 
 ## Steps
 
-1. **Create the app** from the GitHub repo and point the environment at the branch you deploy (`v2` for Departure).
+1. **Create the app** from the GitHub repo and point the environment at the branch you deploy (`main` for Departure).
 2. **Attach resources** to the environment:
     - a Postgres database,
     - a Key-Value store (cache),
@@ -36,7 +36,7 @@ A checklist for getting the `v2` branch (Departure) onto Laravel Cloud for a pla
     - The `VITE_REVERB_*` variables must exist **at build time**, because the browser bundle bakes them in. If Cloud only injects `REVERB_*`, add `VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT` (443) and `VITE_REVERB_SCHEME` (https) yourself, with the same values.
     - `INERTIA_SSR_ENABLED=false` keeps it simple. To use server-side rendering instead, turn on Cloud's Inertia SSR option, build with `npm run build:ssr`, and leave it at `true`.
 4. **Build commands**: `composer install --no-dev --optimize-autoloader`, then `npm ci && npm run build` (or `npm run build:ssr`, see above).
-5. **Deploy command**: `php artisan migrate --force`. On v2 this adds the `game_settings` and `game_cards` tables the admin saves into.
+5. **Deploy command**: `php artisan migrate --force`. On Departure this adds the `game_settings` and `game_cards` tables the admin saves into.
 6. **Queue worker**: enable one for the environment (`php artisan queue:work`).
 7. **Hibernation**: turn it off for the evening of the playtest, so the first tap of the night isn't slow and the worker keeps running.
 8. **Smoke test** after deploying:
@@ -50,5 +50,5 @@ A checklist for getting the `v2` branch (Departure) onto Laravel Cloud for a pla
 
 - **A cache flush or a cache restart ends every lobby in progress.** That's by design for the prototype (tech plan, Part 2).
 - **Lobbies expire** 30 minutes after the last activity (`LAST_STOP_LOBBY_IDLE_MINUTES`). Open pages send a heartbeat, so an active table never expires.
-- **No accounts.** v2 removed the starter kit's register, login and settings pages. Players are guests; the only login is the admin's.
+- **No accounts.** Departure removed the starter kit's register, login and settings pages. Players are guests; the only login is the admin's.
 - **Rule numbers and cards** ship in `resources/game/*.csv`. The admin can change every default and import new decks at `/admin` without a redeploy; Reset goes back to the CSVs. Edit cards between games: a game in progress refers to its cards by position in the deck.
