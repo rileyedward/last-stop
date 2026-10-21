@@ -2,7 +2,7 @@
 
 A train-themed social deduction game for friends on voice chat.
 
-> **Status:** Active — private, in development. Not hosted yet; hosting on Laravel Cloud is planned.
+> **Status:** Inactive — not in active development, though I may come back to it someday. Kept for reference and to run locally.
 
 ## Overview
 
@@ -116,3 +116,11 @@ composer ci:check
 ```bash
 python3 tests/Fixtures/sim/record.py path/to/departure_sim.py
 ```
+
+## Contributing
+
+This project isn't in active development, so I'm not reviewing issues or pull requests. You're welcome to fork it and take it in your own direction under the license below.
+
+## License
+
+Released under the [MIT License](LICENSE).
